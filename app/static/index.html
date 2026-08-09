@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Calorie Bank</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div class="brand">
+          <span class="logo">🏦</span>
+          <div>
+            <h1>Calorie Bank</h1>
+            <p class="tagline">Budget your calories like money</p>
+          </div>
+        </div>
+        <input type="date" id="date-picker" class="date-picker" />
+      </header>
+
+      <section class="balance-card">
+        <div class="ring" id="ring">
+          <div class="ring-inner">
+            <span class="ring-label">Balance left</span>
+            <span class="ring-value" id="balance-value">—</span>
+            <span class="ring-unit">kcal</span>
+          </div>
+        </div>
+        <div class="stats">
+          <div class="stat">
+            <span class="stat-label">Daily budget</span>
+            <div class="budget-edit">
+              <input type="number" id="budget-input" min="0" max="20000" />
+              <button id="save-budget" class="btn-mini">Save</button>
+            </div>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Withdrawn (food)</span>
+            <span class="stat-value withdraw" id="consumed-value">—</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Deposited (activity)</span>
+            <span class="stat-value deposit" id="earned-value">—</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="entry-form">
+        <h2>New transaction</h2>
+        <form id="entry-form">
+          <div class="segmented">
+            <label class="seg seg-food">
+              <input type="radio" name="kind" value="food" checked />
+              <span>🍔 Withdraw (food)</span>
+            </label>
+            <label class="seg seg-activity">
+              <input type="radio" name="kind" value="activity" />
+              <span>🏃 Deposit (activity)</span>
+            </label>
+          </div>
+          <div class="fields">
+            <input
+              type="text"
+              id="description"
+              placeholder="e.g. Chicken salad"
+              maxlength="120"
+              required
+            />
+            <input
+              type="number"
+              id="calories"
+              placeholder="kcal"
+              min="0"
+              max="20000"
+              required
+            />
+            <button type="submit" class="btn-primary">Add</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="ledger">
+        <h2>Transactions</h2>
+        <ul id="entry-list" class="entry-list"></ul>
+        <p id="empty-state" class="empty-state">No transactions for this day yet.</p>
+      </section>
+    </div>
+    <script src="/static/app.js"></script>
+  </body>
+</html>
