@@ -150,13 +150,21 @@ export function summarizeClient(client, { today = new Date(), weights = DEFAULT_
     protein.target = `${client.proteinTarget}g`
   }
 
-  const weeklyBank = scoreWeeklyBank({
-    weeklyBudget: bank.weeklyBudget,
-    weeklyConsumed: bank.weeklyConsumed,
-    dailyTarget: client.dailyTarget,
-    dayIndex,
-    daysLeft,
-  })
+  const weeklyBank =
+    weekLogs.length === 0
+      ? makeStatus({
+          missing: true,
+          label: 'Weekly Bank',
+          metric: 'weeklyBank',
+          explanation: 'No logs this week yet — not scored as over or under budget.',
+        })
+      : scoreWeeklyBank({
+          weeklyBudget: bank.weeklyBudget,
+          weeklyConsumed: bank.weeklyConsumed,
+          dailyTarget: client.dailyTarget,
+          dayIndex,
+          daysLeft,
+        })
 
   const activity = scoreFromDailyStatuses(activityDays)
   activity.label = 'Activity'
