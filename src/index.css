@@ -1,0 +1,192 @@
+@import "tailwindcss";
+
+/*
+  Calorie Bank — Lighter Duke Blue theme
+  Inspired by Duke Blue Devils (#003087) but lifted for a bright,
+  welcoming light UI: collegiate blue accents on soft blue-white.
+*/
+@theme {
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Fraunces", ui-serif, Georgia, serif;
+
+  --color-duke: #1e4d8c;
+  --color-duke-deep: #123568;
+  --color-duke-mid: #2f6bb8;
+  --color-duke-bright: #4b8fd4;
+  --color-duke-soft: #7eb6e8;
+  --color-duke-mist: #d7e7f7;
+  --color-duke-fog: #eef4fb;
+  --color-ink: #0b1f3a;
+  --color-ink-soft: #3a4f6a;
+  --color-ink-muted: #6b7f99;
+  --color-surface: #ffffff;
+  --color-surface-2: #f5f9fd;
+  --color-good: #1f8a5b;
+  --color-warn: #c4841d;
+  --color-ring: #4b8fd4;
+}
+
+:root {
+  color: var(--color-ink);
+  background: var(--color-duke-fog);
+  font-family: var(--font-sans);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(126, 182, 232, 0.45), transparent 55%),
+    radial-gradient(900px 500px at 100% 0%, rgba(47, 107, 184, 0.18), transparent 50%),
+    linear-gradient(180deg, #eef4fb 0%, #f7fafd 45%, #eef4fb 100%);
+  background-attachment: fixed;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image:
+    radial-gradient(circle at 20% 20%, #1e4d8c 1px, transparent 1px),
+    radial-gradient(circle at 80% 60%, #2f6bb8 1px, transparent 1px);
+  background-size: 48px 48px, 64px 64px;
+  z-index: 0;
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+.cb-card {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(245, 249, 253, 0.96));
+  border: 1px solid rgba(30, 77, 140, 0.12);
+  border-radius: 1.25rem;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.8) inset,
+    0 10px 30px rgba(18, 53, 104, 0.06);
+}
+
+.cb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: none;
+  border-radius: 999px;
+  padding: 0.85rem 1.35rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+}
+
+.cb-btn:active {
+  transform: translateY(1px) scale(0.985);
+}
+
+.cb-btn-primary {
+  color: white;
+  background: linear-gradient(135deg, #2f6bb8 0%, #1e4d8c 55%, #123568 100%);
+  box-shadow:
+    0 8px 22px rgba(30, 77, 140, 0.35),
+    0 1px 0 rgba(255, 255, 255, 0.25) inset;
+}
+
+.cb-btn-primary:hover {
+  filter: brightness(1.05);
+  box-shadow:
+    0 12px 28px rgba(30, 77, 140, 0.42),
+    0 1px 0 rgba(255, 255, 255, 0.28) inset;
+}
+
+.cb-btn-ghost {
+  color: var(--color-duke);
+  background: rgba(126, 182, 232, 0.18);
+  border: 1px solid rgba(30, 77, 140, 0.14);
+}
+
+.cb-input {
+  width: 100%;
+  border-radius: 0.9rem;
+  border: 1px solid rgba(30, 77, 140, 0.16);
+  background: rgba(255, 255, 255, 0.9);
+  padding: 0.8rem 0.95rem;
+  color: var(--color-ink);
+  outline: none;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.cb-input:focus {
+  border-color: var(--color-duke-bright);
+  box-shadow: 0 0 0 3px rgba(75, 143, 212, 0.25);
+}
+
+.cb-label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-ink-soft);
+  letter-spacing: 0.01em;
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.03);
+  }
+}
+
+.animate-rise {
+  animation: rise-in 480ms ease both;
+}
+
+.animate-rise-delay-1 {
+  animation: rise-in 520ms ease 80ms both;
+}
+
+.animate-rise-delay-2 {
+  animation: rise-in 560ms ease 140ms both;
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 2.8s ease-in-out infinite;
+}
