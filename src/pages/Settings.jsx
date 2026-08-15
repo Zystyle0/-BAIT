@@ -145,6 +145,9 @@ export default function Settings() {
         <Link to="/plan" className="cb-btn cb-btn-ghost w-full">
           Recalculate plan
         </Link>
+        <Link to="/coach" className="cb-btn cb-btn-ghost w-full">
+          Open coach demo
+        </Link>
         <button
           type="button"
           className="w-full text-sm text-ink-muted underline"

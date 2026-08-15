@@ -16,16 +16,22 @@ export default function WeeklyBankCard({ bank, dailyTarget }) {
         </div>
       </div>
 
+      <div className="mb-4 rounded-[1.35rem] bg-gradient-to-br from-duke-fog to-white px-4 py-4">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">Bank remaining</p>
+        <p className={`mt-1 font-display text-4xl ${remainingPositive ? 'text-good' : 'text-warn'}`}>
+          {Math.abs(Math.round(bank.bankRemaining)).toLocaleString()}
+          <span className="ml-2 text-base font-sans font-medium text-ink-muted">
+            {remainingPositive ? 'kcal left this week' : 'kcal over'}
+          </span>
+        </p>
+        <p className="mt-1 text-sm text-ink-soft">Win the week, not every individual day.</p>
+      </div>
+
       <div className="grid grid-cols-2 gap-3">
         <Stat label="Weekly budget" value={bank.weeklyBudget.toLocaleString()} unit="kcal" />
         <Stat label="Net used" value={Math.round(bank.weeklyConsumed).toLocaleString()} unit="kcal" />
-        <Stat
-          label="Bank remaining"
-          value={Math.abs(bank.bankRemaining).toLocaleString()}
-          unit={remainingPositive ? 'left' : 'over'}
-          accent={remainingPositive ? 'good' : 'warn'}
-        />
         <Stat label="Avg / day left" value={bank.avgPerDayRemaining.toLocaleString()} unit="kcal" />
+        <Stat label="Days remaining" value={String(bank.daysLeft)} unit={bank.daysLeft === 1 ? 'day' : 'days'} />
       </div>
 
       <div className="mt-4">

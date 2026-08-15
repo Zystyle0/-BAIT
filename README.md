@@ -30,9 +30,12 @@ Open the URL Vite prints (default `http://localhost:5173`).
 4. Dashboard (weekly bank, streak, protein, insights)  
 5. Log Today (food withdrawals + activity deposits)  
 6. Explore (weekly bank history + recent days)  
-7. Settings (goals, units, exercise-credit mode, availability)
+7. Settings (goals, units, exercise-credit mode, availability)  
+8. Demo bar → **Coach view** (roster, colors, heat map, priorities)
 
 Food is a withdrawal. Activity is a deposit (credited by the exercise mode in Settings). The weekly bank uses net calories.
+
+Use the sticky **Client view / Coach view** toggle to open the demo coach dashboard at `/coach`. It uses 22 fake clients and does not overwrite your personal local log.
 
 Data is stored in `localStorage` for this MVP.
 
