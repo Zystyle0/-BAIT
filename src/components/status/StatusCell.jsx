@@ -6,11 +6,21 @@ export default function StatusCell({ status, compact = true, size = 'md' }) {
 
   const title = status.label || 'Status'
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       className={`status-cell ${compact ? 'is-compact' : 'is-expanded'} size-${size}`}
       aria-label={`${title}: ${status.status || 'No data'}${status.score != null ? `, ${status.score}` : ''}`}
-      onClick={() => setOpen((v) => !v)}
+      onClick={(e) => {
+        e.stopPropagation()
+        setOpen((v) => !v)
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          setOpen((v) => !v)
+        }
+      }}
       onBlur={() => setOpen(false)}
     >
       <span className={`status-swatch tone-${status.tone}`} />
@@ -27,6 +37,6 @@ export default function StatusCell({ status, compact = true, size = 'md' }) {
         {status.target ? <span>Goal: {status.target}</span> : null}
         {status.explanation ? <span className="status-pop-why">{status.explanation}</span> : null}
       </span>
-    </button>
+    </div>
   )
 }
