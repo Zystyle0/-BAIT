@@ -126,7 +126,33 @@ export function toDateKey(date) {
   return `${y}-${m}-${day}`
 }
 
-export function calcWeeklyBank({ dailyTarget, logs, weekStartsOn = 1, today = new Date() }) {
+export function applyExerciseCredit(exerciseCalories, mode = 'none') {
+  const n = Number(exerciseCalories) || 0
+  if (n <= 0) return 0
+  if (mode === 'full' || mode === 'custom') return n
+  if (mode === 'half') return Math.round(n * 0.5)
+  return 0
+}
+
+/** Food withdrawals minus credited activity deposits. */
+export function netDayCalories(log, exerciseMode = 'none') {
+  const food = Number(log?.calories_eaten) || 0
+  return food - applyExerciseCredit(log?.exercise_calories, exerciseMode)
+}
+
+export function dayHasLog(log) {
+  if (!log) return false
+  if (Array.isArray(log.entries) && log.entries.length > 0) return true
+  return log.calories_eaten !== '' && log.calories_eaten != null
+}
+
+export function calcWeeklyBank({
+  dailyTarget,
+  logs,
+  weekStartsOn = 1,
+  today = new Date(),
+  exerciseMode = 'none',
+}) {
   const weekStart = getWeekStart(today, weekStartsOn)
   const weekEnd = new Date(weekStart)
   weekEnd.setDate(weekEnd.getDate() + 6)
@@ -137,11 +163,16 @@ export function calcWeeklyBank({ dailyTarget, logs, weekStartsOn = 1, today = ne
   })
 
   const weeklyBudget = dailyTarget * 7
-  const weeklyConsumed = weekLogs.reduce((sum, l) => sum + (Number(l.calories_eaten) || 0), 0)
+  const weeklyConsumed = weekLogs.reduce((sum, l) => sum + netDayCalories(l, exerciseMode), 0)
+  const weeklyFood = weekLogs.reduce((sum, l) => sum + (Number(l.calories_eaten) || 0), 0)
+  const weeklyExerciseCredit = weekLogs.reduce(
+    (sum, l) => sum + applyExerciseCredit(l.exercise_calories, exerciseMode),
+    0,
+  )
   const bankRemaining = weeklyBudget - weeklyConsumed
 
   const todayKey = toDateKey(today)
-  const daysPassed = weekLogs.length
+  const daysPassed = weekLogs.filter(dayHasLog).length
   const dayIndex = Math.floor((today - weekStart) / (1000 * 60 * 60 * 24))
   const daysLeft = Math.max(1, 7 - dayIndex)
   const avgPerDayRemaining = Math.round(bankRemaining / daysLeft)
@@ -158,6 +189,8 @@ export function calcWeeklyBank({ dailyTarget, logs, weekStartsOn = 1, today = ne
     weekEnd: toDateKey(weekEnd),
     weeklyBudget,
     weeklyConsumed,
+    weeklyFood,
+    weeklyExerciseCredit,
     bankRemaining,
     avgPerDayRemaining,
     daysLeft,
@@ -169,8 +202,30 @@ export function calcWeeklyBank({ dailyTarget, logs, weekStartsOn = 1, today = ne
   }
 }
 
+export function listRecentWeeks({
+  logs,
+  dailyTarget,
+  weekStartsOn = 1,
+  exerciseMode = 'none',
+  count = 4,
+  today = new Date(),
+}) {
+  return Array.from({ length: count }, (_, i) => {
+    const cursor = new Date(today)
+    cursor.setHours(12, 0, 0, 0)
+    cursor.setDate(cursor.getDate() - i * 7)
+    return calcWeeklyBank({
+      dailyTarget,
+      logs,
+      weekStartsOn,
+      today: cursor,
+      exerciseMode,
+    })
+  })
+}
+
 export function getLoggingStreak(logs, today = new Date()) {
-  const keys = new Set(logs.map((l) => l.date))
+  const keys = new Set(logs.filter(dayHasLog).map((l) => l.date))
   let streak = 0
   const cursor = new Date(today)
   cursor.setHours(12, 0, 0, 0)

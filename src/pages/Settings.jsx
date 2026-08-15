@@ -86,6 +86,9 @@ export default function Settings() {
         </label>
         <label className="block">
           <span className="cb-label">Exercise calories mode</span>
+          <span className="mb-2 block text-xs text-ink-muted">
+            Controls how activity deposits reduce the weekly bank.
+          </span>
           <select
             className="cb-input"
             value={form.exercise_calorie_mode || 'none'}

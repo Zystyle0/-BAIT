@@ -7,15 +7,17 @@ import StreakCard from '../components/dashboard/StreakCard'
 import DayRecapCard from '../components/dashboard/DayRecapCard'
 import ProteinSummaryCard from '../components/dashboard/ProteinSummaryCard'
 import {
+  applyExerciseCredit,
   buildPlan,
   calcWeeklyBank,
   coachMessage,
   getLoggingStreak,
   getWeekStart,
+  netDayCalories,
   runningBankFromLogs,
   toDateKey,
 } from '../lib/calculations'
-import { loadLogs, loadProfile } from '../lib/storage'
+import { blocksForWeekday, loadLogs, loadProfile, loadSchedule } from '../lib/storage'
 
 const GREETINGS = [
   'You are your own standard.',
@@ -38,6 +40,8 @@ export default function Dashboard() {
   if (!profile) return <Navigate to="/onboarding" replace />
 
   const logs = loadLogs()
+  const schedule = loadSchedule()
+  const exerciseMode = profile.exercise_calorie_mode || 'none'
   const plan = useMemo(() => buildPlan(profile), [profile])
   const bank = useMemo(
     () =>
@@ -45,12 +49,17 @@ export default function Dashboard() {
         dailyTarget: plan.dailyTarget,
         logs,
         weekStartsOn: profile.week_starts_on ?? 1,
+        exerciseMode,
       }),
-    [plan.dailyTarget, logs, profile.week_starts_on],
+    [plan.dailyTarget, logs, profile.week_starts_on, exerciseMode],
   )
   const streak = getLoggingStreak(logs)
   const todayKey = toDateKey(new Date())
   const todayLog = logs.find((l) => l.date === todayKey)
+  const todayNet = netDayCalories(todayLog, exerciseMode)
+  const todayCredit = applyExerciseCredit(todayLog?.exercise_calories, exerciseMode)
+  const todayBlocks = blocksForWeekday(schedule)
+  const todayEntries = todayLog?.entries || []
   const pound = runningBankFromLogs({ logs, maintenance: plan.maintenance })
 
   const weekStart = getWeekStart(new Date(), profile.week_starts_on ?? 1)
@@ -64,7 +73,7 @@ export default function Dashboard() {
   const quote = GREETINGS[new Date().getDate() % GREETINGS.length]
   const insight = coachMessage({
     bank,
-    todayCalories: todayLog ? Number(todayLog.calories_eaten) : null,
+    todayCalories: todayLog ? todayNet : null,
     dailyTarget: plan.dailyTarget,
   })
 
@@ -83,7 +92,7 @@ export default function Dashboard() {
           <div className="rounded-xl bg-duke-fog px-3 py-2">
             <p className="text-ink-muted">Today</p>
             <p className="font-semibold text-duke-deep">
-              {(Number(todayLog?.calories_eaten) || 0).toLocaleString()} / {plan.dailyTarget.toLocaleString()}
+              {Math.round(todayNet).toLocaleString()} / {plan.dailyTarget.toLocaleString()}
             </p>
           </div>
           <div className="rounded-xl bg-duke-fog px-3 py-2">
@@ -101,7 +110,55 @@ export default function Dashboard() {
           logs={logs}
           weeklyBudget={bank.weeklyBudget}
           weekStartsOn={profile.week_starts_on ?? 1}
+          exerciseMode={exerciseMode}
         />
+
+        {todayBlocks.length > 0 ? (
+          <section className="cb-card p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-duke-mid">Today&apos;s schedule</p>
+            <h3 className="font-display text-xl text-ink">Windows you set</h3>
+            <ul className="mt-3 space-y-2">
+              {todayBlocks.map((block) => (
+                <li key={block.id} className="flex justify-between rounded-xl bg-duke-fog px-3 py-2 text-sm">
+                  <span className="font-medium text-ink">{block.reason}</span>
+                  <span className="text-ink-muted">
+                    {block.start_time}–{block.end_time}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        {todayEntries.length > 0 ? (
+          <section className="cb-card p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-duke-mid">Today&apos;s ledger</p>
+                <h3 className="font-display text-xl text-ink">Withdrawals & deposits</h3>
+              </div>
+              <Link to="/log" className="text-sm font-semibold text-duke">
+                Edit →
+              </Link>
+            </div>
+            <ul className="mt-3 space-y-2">
+              {todayEntries.slice(0, 5).map((entry) => (
+                <li key={entry.id} className="flex justify-between rounded-xl bg-duke-fog px-3 py-2 text-sm">
+                  <span className="text-ink">{entry.name}</span>
+                  <span className={entry.type === 'activity' ? 'font-semibold text-good' : 'font-semibold text-ink'}>
+                    {entry.type === 'activity' ? '+' : '−'}
+                    {Number(entry.calories).toLocaleString()}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {todayCredit > 0 ? (
+              <p className="mt-3 text-xs text-ink-muted">
+                Activity credit applied: {todayCredit.toLocaleString()} kcal
+              </p>
+            ) : null}
+          </section>
+        ) : null}
         <StreakCard streak={streak} />
 
         <section className="cb-card p-5 animate-rise-delay-2">
@@ -140,6 +197,7 @@ export default function Dashboard() {
           dailyTarget={plan.dailyTarget}
           proteinTarget={plan.proteinTarget}
           bank={bank}
+          netCalories={todayNet}
         />
 
         <section className="grid grid-cols-2 gap-3">

@@ -1,8 +1,8 @@
-export default function DayRecapCard({ todayLog, dailyTarget, proteinTarget, bank }) {
+export default function DayRecapCard({ todayLog, dailyTarget, proteinTarget, bank, netCalories }) {
   const hour = new Date().getHours()
   if (hour < 19) return null
 
-  const calories = Number(todayLog?.calories_eaten) || 0
+  const calories = netCalories != null ? Number(netCalories) : Number(todayLog?.calories_eaten) || 0
   const protein = Number(todayLog?.protein_g) || 0
   const weightLogged = todayLog?.weight != null && todayLog.weight !== ''
 

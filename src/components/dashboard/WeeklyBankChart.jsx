@@ -7,23 +7,23 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { getWeekStart, toDateKey } from '../../lib/calculations'
+import { getWeekStart, netDayCalories, toDateKey } from '../../lib/calculations'
 
-export default function WeeklyBankChart({ logs, weeklyBudget, weekStartsOn = 1 }) {
+export default function WeeklyBankChart({ logs, weeklyBudget, weekStartsOn = 1, exerciseMode = 'none' }) {
   const weekStart = getWeekStart(new Date(), weekStartsOn)
   const data = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(weekStart)
     d.setDate(d.getDate() + i)
     const key = toDateKey(d)
     const dayLogs = logs.filter((l) => l.date === key)
-    const consumed = dayLogs.reduce((s, l) => s + (Number(l.calories_eaten) || 0), 0)
+    const consumed = dayLogs.reduce((s, l) => s + netDayCalories(l, exerciseMode), 0)
     const prior = Array.from({ length: i + 1 }, (_, j) => {
       const dd = new Date(weekStart)
       dd.setDate(dd.getDate() + j)
       const k = toDateKey(dd)
       return logs
         .filter((l) => l.date === k)
-        .reduce((s, l) => s + (Number(l.calories_eaten) || 0), 0)
+        .reduce((s, l) => s + netDayCalories(l, exerciseMode), 0)
     }).reduce((a, b) => a + b, 0)
 
     return {

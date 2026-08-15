@@ -22,6 +22,7 @@ export default function Landing() {
         <h2 className="mt-2 font-display text-3xl">Weekly Calorie Bank</h2>
         <p className="mt-2 text-sm leading-relaxed text-white/85">
           Higher days, dinner-heavy days, busy days — they all fit when the week stays on track.
+          Log food as withdrawals and activity as deposits.
         </p>
         <div className="mt-5 grid grid-cols-3 gap-2 text-center text-xs">
           <HeroStat label="Budget" value="Week" />

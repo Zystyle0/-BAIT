@@ -18,7 +18,7 @@ export default function WeeklyBankCard({ bank, dailyTarget }) {
 
       <div className="grid grid-cols-2 gap-3">
         <Stat label="Weekly budget" value={bank.weeklyBudget.toLocaleString()} unit="kcal" />
-        <Stat label="Consumed" value={bank.weeklyConsumed.toLocaleString()} unit="kcal" />
+        <Stat label="Net used" value={Math.round(bank.weeklyConsumed).toLocaleString()} unit="kcal" />
         <Stat
           label="Bank remaining"
           value={Math.abs(bank.bankRemaining).toLocaleString()}
@@ -42,6 +42,12 @@ export default function WeeklyBankCard({ bank, dailyTarget }) {
         <p className="mt-2 text-sm text-ink-soft">
           {bank.daysLeft} day{bank.daysLeft === 1 ? '' : 's'} left · daily guide ~{dailyTarget.toLocaleString()} kcal
         </p>
+        {bank.weeklyExerciseCredit > 0 ? (
+          <p className="mt-1 text-xs text-ink-muted">
+            Food {Math.round(bank.weeklyFood).toLocaleString()} − activity credit{' '}
+            {Math.round(bank.weeklyExerciseCredit).toLocaleString()}
+          </p>
+        ) : null}
       </div>
     </section>
   )
