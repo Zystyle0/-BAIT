@@ -21,8 +21,11 @@ a lightweight vanilla-JS single-page frontend served directly by FastAPI.
   foods appear as one-tap quick-add chips
 - **Food insights**: look back at what you've eaten the most and the least,
   with average calories per food
-- **Favorites**: pin foods to keep them at the front of quick-add
+- **Favorites**: pin foods to keep them at the front of quick-add, with an
+  editable "typical calories" value used to prefill quick-add
 - **Trends**: a weekly/monthly bar chart of daily net calories with a budget line
+- **Per-food sparklines**: a mini calorie trend for each food in insights
+- **Streak counter**: consecutive days logged, shown as a badge
 
 ## Requirements
 
@@ -49,7 +52,9 @@ Then open http://localhost:8000.
 | `GET` | `/api/foods/frequent?limit=N` | Most-logged foods (all time) for one-tap re-logging |
 | `GET` | `/api/foods/stats?limit=N` | All-time look-back: most- and least-eaten foods |
 | `PUT` | `/api/foods/favorite` | Pin/unpin a food by name (`{name, favorite}`) |
+| `PUT` | `/api/foods/typical` | Set/clear typical calories for a food (`{name, calories}`; `null` clears) |
 | `GET` | `/api/trends?days=N&end=YYYY-MM-DD` | Daily net-calorie totals over a window, with summary stats |
+| `GET` | `/api/streak?end=YYYY-MM-DD` | Current consecutive-days-logged streak |
 | `GET` | `/api/entries?entry_date=YYYY-MM-DD` | List entries (all if no date) |
 | `POST` | `/api/entries` | Create an entry (`kind` = `food` \| `activity`) |
 | `DELETE` | `/api/entries/{id}` | Delete an entry |
