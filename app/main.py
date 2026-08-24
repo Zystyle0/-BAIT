@@ -15,6 +15,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from .coach import build_advice
 from .db import get_connection, init_db
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -137,6 +138,12 @@ def summary(entry_date: str | None = None) -> dict:
             "balance": balance,
             "entries": entries,
         }
+
+
+@app.get("/api/coach")
+def coach(entry_date: str | None = None) -> dict:
+    """Rules-based coaching advice for the given day's ledger."""
+    return build_advice(summary(entry_date))
 
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")

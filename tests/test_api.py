@@ -78,6 +78,23 @@ def test_entries_are_date_scoped(client):
     assert client.get("/api/summary?entry_date=2026-08-10").json()["consumed"] == 200
 
 
+def test_coach_endpoint_reflects_ledger(client):
+    day = "2026-08-24"
+    client.put("/api/settings", json={"daily_budget": 2000})
+    empty = client.get(f"/api/coach?entry_date={day}").json()
+    assert empty["status"] == "empty"
+
+    client.post(
+        "/api/entries",
+        json={"entry_date": day, "kind": "food", "description": "Big lunch", "calories": 2300},
+    )
+    over = client.get(f"/api/coach?entry_date={day}").json()
+    assert over["status"] == "over"
+    assert over["metrics"]["balance"] == -300
+    assert over["headline"]
+    assert isinstance(over["tips"], list) and over["tips"]
+
+
 def test_validation_rejects_bad_kind(client):
     res = client.post(
         "/api/entries",

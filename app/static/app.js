@@ -4,6 +4,11 @@ const api = {
     if (!res.ok) throw new Error("Failed to load summary");
     return res.json();
   },
+  async coach(date) {
+    const res = await fetch(`/api/coach?entry_date=${date}`);
+    if (!res.ok) throw new Error("Failed to load coach");
+    return res.json();
+  },
   async addEntry(payload) {
     const res = await fetch("/api/entries", {
       method: "POST",
@@ -87,10 +92,35 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+const BADGE_LABELS = {
+  good: "On track",
+  warning: "Heads up",
+  over: "Over budget",
+  empty: "Get started",
+};
+
+function renderCoach(advice) {
+  el("coach-card").dataset.status = advice.status;
+  el("coach-headline").textContent = advice.headline;
+  el("coach-badge").textContent = BADGE_LABELS[advice.status] || advice.status;
+  el("coach-message").textContent = advice.message;
+  const tips = el("coach-tips");
+  tips.innerHTML = "";
+  for (const tip of advice.tips) {
+    const li = document.createElement("li");
+    li.textContent = tip;
+    tips.appendChild(li);
+  }
+}
+
 async function refresh() {
   try {
-    const data = await api.summary(datePicker.value);
+    const [data, advice] = await Promise.all([
+      api.summary(datePicker.value),
+      api.coach(datePicker.value),
+    ]);
     render(data);
+    renderCoach(advice);
   } catch (err) {
     console.error(err);
   }

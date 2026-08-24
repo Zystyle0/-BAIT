@@ -218,6 +218,100 @@ input:focus {
   transform: scale(0.97);
 }
 
+.coach-card {
+  --coach-accent: var(--accent);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--coach-accent);
+  border-radius: 20px;
+  padding: 20px 22px;
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  box-shadow: var(--shadow);
+}
+
+.coach-card[data-status="good"] {
+  --coach-accent: var(--deposit);
+}
+.coach-card[data-status="warning"] {
+  --coach-accent: #fbbf24;
+}
+.coach-card[data-status="over"] {
+  --coach-accent: var(--withdraw);
+}
+.coach-card[data-status="empty"] {
+  --coach-accent: var(--accent);
+}
+
+.coach-avatar {
+  font-size: 34px;
+  line-height: 1;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4));
+  flex-shrink: 0;
+}
+
+.coach-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.coach-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.coach-headline {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.coach-badge {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 10px;
+  border-radius: 999px;
+  color: var(--coach-accent);
+  background: color-mix(in srgb, var(--coach-accent) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--coach-accent) 40%, transparent);
+}
+
+.coach-message {
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.coach-tips {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.coach-tips li {
+  position: relative;
+  padding-left: 20px;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.coach-tips li::before {
+  content: "💡";
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-size: 12px;
+}
+
 .entry-form,
 .ledger {
   background: var(--card);
