@@ -55,6 +55,10 @@ def init_db() -> None:
             );
 
             CREATE INDEX IF NOT EXISTS idx_entries_date ON entries(entry_date);
+
+            CREATE TABLE IF NOT EXISTS food_favorites (
+                name_key TEXT PRIMARY KEY
+            );
             """
         )
         conn.execute(

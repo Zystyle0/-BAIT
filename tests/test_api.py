@@ -167,6 +167,62 @@ def test_food_stats_most_and_least(client):
     assert stats["least_eaten"][0]["name"] == "Cake"
 
 
+def test_favorite_pins_food_to_front(client):
+    for day in ["2026-08-20", "2026-08-21", "2026-08-22"]:
+        client.post(
+            "/api/entries",
+            json={"entry_date": day, "kind": "food", "description": "Rice", "calories": 200},
+        )
+    client.post(
+        "/api/entries",
+        json={"entry_date": "2026-08-22", "kind": "food", "description": "Kiwi", "calories": 40},
+    )
+    # Rice (3x) outranks Kiwi (1x) by default.
+    assert client.get("/api/foods/frequent").json()[0]["name"] == "Rice"
+
+    res = client.put("/api/foods/favorite", json={"name": "Kiwi", "favorite": True})
+    assert res.status_code == 200 and res.json()["favorite"] is True
+
+    frequent = client.get("/api/foods/frequent").json()
+    assert frequent[0]["name"] == "Kiwi"
+    assert frequent[0]["favorite"] is True
+    assert frequent[1]["name"] == "Rice"
+
+    client.put("/api/foods/favorite", json={"name": "kiwi", "favorite": False})
+    assert client.get("/api/foods/frequent").json()[0]["name"] == "Rice"
+
+
+def test_trends_window_and_summary(client):
+    client.put("/api/settings", json={"daily_budget": 1000})
+    client.post(
+        "/api/entries",
+        json={"entry_date": "2026-08-22", "kind": "food", "description": "A", "calories": 1200},
+    )
+    client.post(
+        "/api/entries",
+        json={"entry_date": "2026-08-24", "kind": "food", "description": "B", "calories": 500},
+    )
+    client.post(
+        "/api/entries",
+        json={"entry_date": "2026-08-24", "kind": "activity", "description": "Run", "calories": 100},
+    )
+
+    trend = client.get("/api/trends?days=7&end=2026-08-24").json()
+    assert trend["days"] == 7
+    assert len(trend["points"]) == 7
+    assert trend["start"] == "2026-08-18" and trend["end"] == "2026-08-24"
+
+    by_date = {p["date"]: p for p in trend["points"]}
+    assert by_date["2026-08-22"]["net"] == 1200 and by_date["2026-08-22"]["over"] is True
+    assert by_date["2026-08-24"]["net"] == 400 and by_date["2026-08-24"]["over"] is False
+    assert by_date["2026-08-23"]["logged"] is False
+
+    assert trend["summary"]["days_logged"] == 2
+    assert trend["summary"]["days_over"] == 1
+    assert trend["summary"]["total_consumed"] == 1700
+    assert trend["summary"]["avg_net"] == 800  # (1200 + 400) / 2
+
+
 def test_coach_endpoint_reflects_ledger(client):
     day = "2026-08-24"
     client.put("/api/settings", json={"daily_budget": 2000})

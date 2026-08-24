@@ -41,7 +41,23 @@ const api = {
     if (!res.ok) throw new Error("Failed to load food stats");
     return res.json();
   },
+  async trends(days, end) {
+    const res = await fetch(`/api/trends?days=${days}&end=${end}`);
+    if (!res.ok) throw new Error("Failed to load trends");
+    return res.json();
+  },
+  async setFavorite(name, favorite) {
+    const res = await fetch("/api/foods/favorite", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, favorite }),
+    });
+    if (!res.ok) throw new Error("Failed to update favorite");
+    return res.json();
+  },
 };
+
+let trendDays = 7;
 
 const el = (id) => document.getElementById(id);
 const datePicker = el("date-picker");
@@ -124,6 +140,25 @@ function renderCoach(advice) {
   if (advice.goal) el("goal-select").value = advice.goal;
 }
 
+async function toggleFavorite(name, makeFav) {
+  await api.setFavorite(name, makeFav);
+  await refresh();
+}
+
+function makeStar(food) {
+  const star = document.createElement("button");
+  star.type = "button";
+  star.className = "fav-star";
+  star.dataset.fav = String(food.favorite);
+  star.textContent = food.favorite ? "★" : "☆";
+  star.title = food.favorite ? "Unpin favorite" : "Pin as favorite";
+  star.addEventListener("click", (e) => {
+    e.stopPropagation();
+    toggleFavorite(food.name, !food.favorite);
+  });
+  return star;
+}
+
 function renderQuickAdd(foods) {
   const wrap = el("quick-add");
   const chips = el("food-chips");
@@ -136,13 +171,14 @@ function renderQuickAdd(foods) {
   for (const food of foods) {
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className = "chip";
+    btn.className = "chip" + (food.favorite ? " is-fav" : "");
     btn.innerHTML = `
       <span class="chip-name"></span>
       <span class="chip-cals">${food.last_calories.toLocaleString()} kcal</span>
       <span class="chip-count">×${food.count}</span>
     `;
     btn.querySelector(".chip-name").textContent = food.name;
+    btn.appendChild(makeStar(food));
     btn.addEventListener("click", () => {
       document.querySelector('input[name="kind"][value="food"]').checked = true;
       el("description").value = food.name;
@@ -158,11 +194,14 @@ function renderRank(listEl, foods) {
   for (const food of foods) {
     const li = document.createElement("li");
     const times = food.count === 1 ? "time" : "times";
-    li.innerHTML = `
-      <span class="food-name"></span>
-      <span class="food-count">${food.count} ${times} · ${food.total_calories.toLocaleString()} kcal</span>
-    `;
-    li.querySelector(".food-name").textContent = food.name;
+    const name = document.createElement("span");
+    name.className = "food-name";
+    name.textContent = food.name;
+    const count = document.createElement("span");
+    count.className = "food-count";
+    count.textContent =
+      `${food.count} ${times} · avg ${food.avg_calories.toLocaleString()} kcal`;
+    li.append(name, count, makeStar(food));
     listEl.appendChild(li);
   }
 }
@@ -181,18 +220,71 @@ function renderInsights(stats) {
   renderRank(el("least-eaten"), stats.least_eaten);
 }
 
+function barLabel(dateStr, days, index, total) {
+  const d = new Date(dateStr + "T00:00:00");
+  if (days <= 10) {
+    return d.toLocaleDateString(undefined, { weekday: "short" });
+  }
+  if (index % 5 === 0 || index === total - 1) return String(d.getDate());
+  return "";
+}
+
+function renderTrends(data) {
+  const anyLogged = data.summary.days_logged > 0;
+  el("trends").classList.toggle("hidden", !anyLogged);
+  el("trends-empty").classList.toggle("hidden", anyLogged);
+
+  const summary = el("trend-summary");
+  summary.innerHTML = "";
+  const metrics = [
+    ["Avg net / day", anyLogged ? `${data.summary.avg_net.toLocaleString()} kcal` : "—"],
+    ["Days logged", `${data.summary.days_logged} / ${data.days}`],
+    ["Days over budget", String(data.summary.days_over)],
+  ];
+  for (const [label, value] of metrics) {
+    const m = document.createElement("div");
+    m.className = "trend-metric";
+    m.innerHTML = `<span class="tm-value"></span><span class="tm-label"></span>`;
+    m.querySelector(".tm-value").textContent = value;
+    m.querySelector(".tm-label").textContent = label;
+    summary.appendChild(m);
+  }
+
+  const chart = el("trend-chart");
+  chart.innerHTML = "";
+  const budget = data.daily_budget;
+  const maxVal = Math.max(budget, ...data.points.map((p) => p.net), 1);
+  chart.style.setProperty("--budget-pct", ((budget / maxVal) * 100).toFixed(1));
+  data.points.forEach((p, i) => {
+    const bar = document.createElement("div");
+    bar.className = "trend-bar";
+    bar.dataset.over = String(p.over);
+    bar.dataset.logged = String(p.logged);
+    const h = (Math.max(0, p.net) / maxVal) * 100;
+    const label = barLabel(p.date, data.days, i, data.points.length);
+    bar.innerHTML = `
+      <div class="bar-fill" style="height:${h.toFixed(1)}%"
+           title="${p.date}: ${p.net.toLocaleString()} net kcal${p.logged ? "" : " (no entries)"}"></div>
+      <span class="bar-label">${label}</span>
+    `;
+    chart.appendChild(bar);
+  });
+}
+
 async function refresh() {
   try {
-    const [data, advice, frequent, stats] = await Promise.all([
+    const [data, advice, frequent, stats, trend] = await Promise.all([
       api.summary(datePicker.value),
       api.coach(datePicker.value),
       api.frequentFoods(6),
       api.foodStats(5),
+      api.trends(trendDays, datePicker.value),
     ]);
     render(data);
     renderCoach(advice);
     renderQuickAdd(frequent);
     renderInsights(stats);
+    renderTrends(trend);
   } catch (err) {
     console.error(err);
   }
@@ -236,6 +328,16 @@ el("save-budget").addEventListener("click", async () => {
 el("goal-select").addEventListener("change", async (e) => {
   await api.updateSettings({ goal: e.target.value });
   await refresh();
+});
+
+el("range-toggle").addEventListener("click", (e) => {
+  const btn = e.target.closest(".range-btn");
+  if (!btn) return;
+  trendDays = parseInt(btn.dataset.days, 10);
+  for (const b of el("range-toggle").querySelectorAll(".range-btn")) {
+    b.classList.toggle("is-active", b === btn);
+  }
+  refresh();
 });
 
 refresh();
