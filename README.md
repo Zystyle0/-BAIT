@@ -16,6 +16,10 @@ a lightweight vanilla-JS single-page frontend served directly by FastAPI.
 - **Calorie Coach**: a built-in, rules-based advisor that reacts to your ledger
   in real time with a status (on track / heads up / over budget) and actionable
   tips — no API key or external service required
+- **Goals**: choose Cut / Maintain / Bulk to tailor the Coach's advice
+- **Food memory**: every food you log is remembered all-time; your most-used
+  foods appear as one-tap quick-add chips
+- **Food insights**: look back at what you've eaten the most and the least
 
 ## Requirements
 
@@ -39,11 +43,13 @@ Then open http://localhost:8000.
 | --- | --- | --- |
 | `GET` | `/api/summary?entry_date=YYYY-MM-DD` | Budget, totals, balance, and entries for a day |
 | `GET` | `/api/coach?entry_date=YYYY-MM-DD` | Coach advice: status, headline, message, and tips for a day |
+| `GET` | `/api/foods/frequent?limit=N` | Most-logged foods (all time) for one-tap re-logging |
+| `GET` | `/api/foods/stats?limit=N` | All-time look-back: most- and least-eaten foods |
 | `GET` | `/api/entries?entry_date=YYYY-MM-DD` | List entries (all if no date) |
 | `POST` | `/api/entries` | Create an entry (`kind` = `food` \| `activity`) |
 | `DELETE` | `/api/entries/{id}` | Delete an entry |
-| `GET` | `/api/settings` | Get the daily budget |
-| `PUT` | `/api/settings` | Update the daily budget |
+| `GET` | `/api/settings` | Get the daily budget and goal |
+| `PUT` | `/api/settings` | Update the daily budget and/or goal (`cut` \| `maintain` \| `bulk`) |
 
 Interactive API docs are available at http://localhost:8000/docs.
 
