@@ -19,7 +19,10 @@ a lightweight vanilla-JS single-page frontend served directly by FastAPI.
 - **Goals**: choose Cut / Maintain / Bulk to tailor the Coach's advice
 - **Food memory**: every food you log is remembered all-time; your most-used
   foods appear as one-tap quick-add chips
-- **Food insights**: look back at what you've eaten the most and the least
+- **Food insights**: look back at what you've eaten the most and the least,
+  with average calories per food
+- **Favorites**: pin foods to keep them at the front of quick-add
+- **Trends**: a weekly/monthly bar chart of daily net calories with a budget line
 
 ## Requirements
 
@@ -45,6 +48,8 @@ Then open http://localhost:8000.
 | `GET` | `/api/coach?entry_date=YYYY-MM-DD` | Coach advice: status, headline, message, and tips for a day |
 | `GET` | `/api/foods/frequent?limit=N` | Most-logged foods (all time) for one-tap re-logging |
 | `GET` | `/api/foods/stats?limit=N` | All-time look-back: most- and least-eaten foods |
+| `PUT` | `/api/foods/favorite` | Pin/unpin a food by name (`{name, favorite}`) |
+| `GET` | `/api/trends?days=N&end=YYYY-MM-DD` | Daily net-calorie totals over a window, with summary stats |
 | `GET` | `/api/entries?entry_date=YYYY-MM-DD` | List entries (all if no date) |
 | `POST` | `/api/entries` | Create an entry (`kind` = `food` \| `activity`) |
 | `DELETE` | `/api/entries/{id}` | Delete an entry |
