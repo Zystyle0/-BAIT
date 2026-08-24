@@ -348,6 +348,11 @@ input:focus {
   font-size: 12px;
 }
 
+.chip .chip-cals.is-custom {
+  color: var(--accent);
+  font-weight: 600;
+}
+
 .chip .chip-count {
   background: color-mix(in srgb, var(--accent) 20%, transparent);
   color: var(--accent);
@@ -571,8 +576,15 @@ input:focus {
   font-weight: 700;
 }
 
-.food-rank .food-name {
+.food-rank .food-main {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.food-rank .food-name {
   font-weight: 600;
   font-size: 14px;
   overflow: hidden;
@@ -580,9 +592,12 @@ input:focus {
   white-space: nowrap;
 }
 
-.food-rank .food-count {
-  font-size: 12px;
+.food-rank .food-meta {
+  font-size: 11px;
   color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .fav-star {

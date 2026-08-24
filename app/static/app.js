@@ -275,10 +275,11 @@ function renderQuickAdd(foods) {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "chip" + (food.favorite ? " is-fav" : "");
-    const custom = food.typical_custom ? " title=\"custom typical calories\"" : "";
+    const customCls = food.typical_custom ? " is-custom" : "";
+    const customTitle = food.typical_custom ? ' title="custom typical calories"' : "";
     btn.innerHTML = `
       <span class="chip-name"></span>
-      <span class="chip-cals"${custom}>${food.typical_calories.toLocaleString()} kcal${food.typical_custom ? " ✎" : ""}</span>
+      <span class="chip-cals${customCls}"${customTitle}>${food.typical_calories.toLocaleString()} kcal</span>
       <span class="chip-count">×${food.count}</span>
     `;
     btn.querySelector(".chip-name").textContent = food.name;
@@ -310,14 +311,17 @@ function renderRank(listEl, foods) {
   for (const food of foods) {
     const li = document.createElement("li");
     const times = food.count === 1 ? "time" : "times";
+    const main = document.createElement("div");
+    main.className = "food-main";
     const name = document.createElement("span");
     name.className = "food-name";
     name.textContent = food.name;
-    const count = document.createElement("span");
-    count.className = "food-count";
-    count.textContent =
+    const meta = document.createElement("span");
+    meta.className = "food-meta";
+    meta.textContent =
       `${food.count} ${times} · avg ${food.avg_calories.toLocaleString()} kcal`;
-    li.append(name, sparkline(food.history), count, makeStar(food));
+    main.append(name, meta);
+    li.append(main, sparkline(food.history), makeStar(food));
     listEl.appendChild(li);
   }
 }
