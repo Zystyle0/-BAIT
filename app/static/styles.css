@@ -218,6 +218,184 @@ input:focus {
   transform: scale(0.97);
 }
 
+.goal-select {
+  background: var(--card-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
+  width: fit-content;
+}
+
+.goal-select:focus {
+  border-color: var(--accent);
+}
+
+.quick-add {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.quick-add.hidden {
+  display: none;
+}
+
+.quick-add-label {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 10px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--card-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.chip:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.chip:active {
+  transform: scale(0.97);
+}
+
+.chip .chip-cals {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.chip .chip-count {
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  color: var(--accent);
+  border-radius: 999px;
+  padding: 1px 7px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.insights {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 22px;
+  box-shadow: var(--shadow);
+}
+
+.insights-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.insights-head h2 {
+  margin: 0;
+}
+
+.insights-sub {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.insights-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 22px;
+}
+
+.insights-col h3 {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  margin: 0 0 10px;
+}
+
+.food-rank {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  counter-reset: rank;
+}
+
+.food-rank li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  background: var(--card-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.food-rank li::before {
+  counter-increment: rank;
+  content: counter(rank);
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.food-rank .food-name {
+  flex: 1;
+  font-weight: 600;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.food-rank .food-count {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.insights-grid.hidden {
+  display: none;
+}
+
+@media (max-width: 520px) {
+  .insights-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .coach-card {
   --coach-accent: var(--accent);
   background: var(--card);

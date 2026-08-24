@@ -17,16 +17,38 @@ WALK_KCAL_PER_MIN = 5
 LOW_BALANCE_FRACTION = 0.15
 
 
+VALID_GOALS = ("cut", "maintain", "bulk")
+
+
 def _walk_minutes(kcal: int) -> int:
     return max(1, round(kcal / WALK_KCAL_PER_MIN))
 
 
-def build_advice(summary: dict[str, Any]) -> dict[str, Any]:
+def _goal_tip(goal: str, status: str, pct_consumed: float, balance: int) -> str | None:
+    """A goal-specific nudge appended to the coach's tips."""
+    if goal == "cut":
+        if status == "over":
+            return "This works against your cut — offsetting it with activity keeps you in a deficit."
+        if status in ("good", "warning"):
+            return "Leaving a buffer under budget keeps you in the deficit your cut needs."
+    elif goal == "bulk":
+        if status == "over":
+            return "A modest surplus is on-plan for your bulk — just keep it intentional."
+        if status == "good" and pct_consumed < 60:
+            return "For your bulk you have plenty of room — add a snack or shake to hit your target."
+        if status == "empty":
+            return "Bulking means eating consistently — aim to meet (or slightly beat) your budget today."
+    return None
+
+
+def build_advice(summary: dict[str, Any], goal: str = "maintain") -> dict[str, Any]:
     """Turn a daily summary into coaching advice.
 
     ``summary`` must contain ``daily_budget``, ``consumed``, ``earned``,
     ``available``, ``balance`` and ``entries`` (as produced by the summary API).
+    ``goal`` is one of ``cut``, ``maintain`` or ``bulk`` and tailors the tips.
     """
+    goal = goal if goal in VALID_GOALS else "maintain"
     budget = int(summary["daily_budget"])
     consumed = int(summary["consumed"])
     earned = int(summary["earned"])
@@ -92,8 +114,13 @@ def build_advice(summary: dict[str, Any]) -> dict[str, Any]:
         if not tips:
             tips.append("You're pacing well. Keep logging as you go.")
 
+    goal_tip = _goal_tip(goal, status, pct_consumed, balance)
+    if goal_tip:
+        tips.append(goal_tip)
+
     return {
         "date": summary.get("date"),
+        "goal": goal,
         "status": status,
         "headline": headline,
         "message": message,

@@ -58,3 +58,28 @@ def test_activity_deposit_praised():
     assert advice["status"] == "good"
     assert advice["metrics"]["available"] == 2300
     assert any("activity added" in t.lower() for t in advice["tips"])
+
+
+def test_goal_defaults_to_maintain():
+    advice = build_advice(make_summary(2000, 0, 0, entries=[]))
+    assert advice["goal"] == "maintain"
+
+
+def test_bulk_goal_encourages_eating_more_when_low_intake():
+    entries = [{"kind": "food", "calories": 400}]
+    advice = build_advice(make_summary(2000, 400, 0, entries=entries), goal="bulk")
+    assert advice["goal"] == "bulk"
+    assert advice["status"] == "good"
+    assert any("bulk" in t.lower() for t in advice["tips"])
+
+
+def test_cut_goal_reinforces_deficit():
+    entries = [{"kind": "food", "calories": 600}]
+    advice = build_advice(make_summary(2000, 600, 0, entries=entries), goal="cut")
+    assert advice["goal"] == "cut"
+    assert any("deficit" in t.lower() for t in advice["tips"])
+
+
+def test_invalid_goal_falls_back_to_maintain():
+    advice = build_advice(make_summary(2000, 600, 0, entries=[{"kind": "food", "calories": 600}]), goal="bogus")
+    assert advice["goal"] == "maintain"

@@ -60,3 +60,6 @@ def init_db() -> None:
         conn.execute(
             "INSERT OR IGNORE INTO settings(key, value) VALUES ('daily_budget', '2000')"
         )
+        conn.execute(
+            "INSERT OR IGNORE INTO settings(key, value) VALUES ('goal', 'maintain')"
+        )

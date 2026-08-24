@@ -42,31 +42,52 @@ class Entry(EntryIn):
     created_at: str
 
 
-class BudgetIn(BaseModel):
-    daily_budget: int = Field(..., ge=0, le=20000)
+VALID_GOALS = ("cut", "maintain", "bulk")
+
+
+class SettingsIn(BaseModel):
+    daily_budget: int | None = Field(None, ge=0, le=20000)
+    goal: str | None = Field(None, pattern="^(cut|maintain|bulk)$")
+
+
+def _get_setting(conn, key: str, default: str) -> str:
+    row = conn.execute(
+        "SELECT value FROM settings WHERE key = ?", (key,)
+    ).fetchone()
+    return row["value"] if row else default
 
 
 def _get_budget(conn) -> int:
-    row = conn.execute(
-        "SELECT value FROM settings WHERE key = 'daily_budget'"
-    ).fetchone()
-    return int(row["value"]) if row else 2000
+    return int(_get_setting(conn, "daily_budget", "2000"))
+
+
+def _get_goal(conn) -> str:
+    goal = _get_setting(conn, "goal", "maintain")
+    return goal if goal in VALID_GOALS else "maintain"
+
+
+def _set_setting(conn, key: str, value: str) -> None:
+    conn.execute(
+        "INSERT INTO settings(key, value) VALUES (?, ?) "
+        "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        (key, value),
+    )
 
 
 @app.get("/api/settings")
 def get_settings() -> dict:
     with get_connection() as conn:
-        return {"daily_budget": _get_budget(conn)}
+        return {"daily_budget": _get_budget(conn), "goal": _get_goal(conn)}
 
 
 @app.put("/api/settings")
-def update_settings(payload: BudgetIn) -> dict:
+def update_settings(payload: SettingsIn) -> dict:
     with get_connection() as conn:
-        conn.execute(
-            "UPDATE settings SET value = ? WHERE key = 'daily_budget'",
-            (str(payload.daily_budget),),
-        )
-        return {"daily_budget": payload.daily_budget}
+        if payload.daily_budget is not None:
+            _set_setting(conn, "daily_budget", str(payload.daily_budget))
+        if payload.goal is not None:
+            _set_setting(conn, "goal", payload.goal)
+        return {"daily_budget": _get_budget(conn), "goal": _get_goal(conn)}
 
 
 @app.get("/api/entries")
@@ -143,7 +164,70 @@ def summary(entry_date: str | None = None) -> dict:
 @app.get("/api/coach")
 def coach(entry_date: str | None = None) -> dict:
     """Rules-based coaching advice for the given day's ledger."""
-    return build_advice(summary(entry_date))
+    with get_connection() as conn:
+        goal = _get_goal(conn)
+    return build_advice(summary(entry_date), goal=goal)
+
+
+def _food_stats(conn) -> list[dict]:
+    """Aggregate every food entry (all time) by normalized name.
+
+    Foods are grouped case-insensitively on their description. The most recent
+    logging of a food wins for its display name and its "last" calories.
+    """
+    rows = conn.execute(
+        "SELECT description, calories, entry_date FROM entries "
+        "WHERE kind = 'food' ORDER BY id ASC"
+    ).fetchall()
+    agg: dict[str, dict] = {}
+    for r in rows:
+        name = r["description"].strip()
+        key = name.lower()
+        item = agg.setdefault(
+            key,
+            {
+                "name": name,
+                "count": 0,
+                "total_calories": 0,
+                "last_calories": 0,
+                "last_eaten": None,
+            },
+        )
+        item["count"] += 1
+        item["total_calories"] += int(r["calories"])
+        item["name"] = name  # most recent (rows are id-ascending) wins
+        item["last_calories"] = int(r["calories"])
+        item["last_eaten"] = r["entry_date"]
+    foods = list(agg.values())
+    for item in foods:
+        item["avg_calories"] = round(item["total_calories"] / item["count"])
+    foods.sort(key=lambda x: (-x["count"], -x["total_calories"], x["name"].lower()))
+    return foods
+
+
+@app.get("/api/foods/frequent")
+def frequent_foods(limit: int = 6) -> list[dict]:
+    """Most-logged foods (all time) for one-tap re-logging."""
+    limit = max(1, min(limit, 50))
+    with get_connection() as conn:
+        return _food_stats(conn)[:limit]
+
+
+@app.get("/api/foods/stats")
+def food_insights(limit: int = 5) -> dict:
+    """All-time look-back: most- and least-eaten foods."""
+    limit = max(1, min(limit, 50))
+    with get_connection() as conn:
+        foods = _food_stats(conn)
+    least = sorted(
+        foods, key=lambda x: (x["count"], x["total_calories"], x["name"].lower())
+    )
+    return {
+        "total_unique": len(foods),
+        "total_food_entries": sum(f["count"] for f in foods),
+        "most_eaten": foods[:limit],
+        "least_eaten": least[:limit],
+    }
 
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")

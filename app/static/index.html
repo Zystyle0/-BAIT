@@ -48,6 +48,14 @@
             <span class="stat-label">Deposited (activity)</span>
             <span class="stat-value deposit" id="earned-value">—</span>
           </div>
+          <div class="stat">
+            <span class="stat-label">Goal</span>
+            <select id="goal-select" class="goal-select">
+              <option value="cut">📉 Cut (lose)</option>
+              <option value="maintain">⚖️ Maintain</option>
+              <option value="bulk">📈 Bulk (gain)</option>
+            </select>
+          </div>
         </div>
       </section>
 
@@ -95,12 +103,36 @@
             <button type="submit" class="btn-primary">Add</button>
           </div>
         </form>
+        <div class="quick-add" id="quick-add">
+          <span class="quick-add-label">⚡ Your usual foods</span>
+          <div class="chips" id="food-chips"></div>
+        </div>
       </section>
 
       <section class="ledger">
         <h2>Transactions</h2>
         <ul id="entry-list" class="entry-list"></ul>
         <p id="empty-state" class="empty-state">No transactions for this day yet.</p>
+      </section>
+
+      <section class="insights" id="insights">
+        <div class="insights-head">
+          <h2>Food insights</h2>
+          <span class="insights-sub" id="insights-sub"></span>
+        </div>
+        <div class="insights-grid">
+          <div class="insights-col">
+            <h3>🔥 Eaten most</h3>
+            <ol class="food-rank" id="most-eaten"></ol>
+          </div>
+          <div class="insights-col">
+            <h3>🌙 Eaten least</h3>
+            <ol class="food-rank" id="least-eaten"></ol>
+          </div>
+        </div>
+        <p id="insights-empty" class="empty-state">
+          Log some foods and your all-time favorites will show up here.
+        </p>
       </section>
     </div>
     <script src="/static/app.js"></script>

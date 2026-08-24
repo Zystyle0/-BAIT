@@ -22,13 +22,23 @@ const api = {
     const res = await fetch(`/api/entries/${id}`, { method: "DELETE" });
     if (!res.ok && res.status !== 204) throw new Error("Failed to delete entry");
   },
-  async setBudget(budget) {
+  async updateSettings(payload) {
     const res = await fetch("/api/settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ daily_budget: budget }),
+      body: JSON.stringify(payload),
     });
-    if (!res.ok) throw new Error("Failed to update budget");
+    if (!res.ok) throw new Error("Failed to update settings");
+    return res.json();
+  },
+  async frequentFoods(limit = 6) {
+    const res = await fetch(`/api/foods/frequent?limit=${limit}`);
+    if (!res.ok) throw new Error("Failed to load frequent foods");
+    return res.json();
+  },
+  async foodStats(limit = 5) {
+    const res = await fetch(`/api/foods/stats?limit=${limit}`);
+    if (!res.ok) throw new Error("Failed to load food stats");
     return res.json();
   },
 };
@@ -111,16 +121,78 @@ function renderCoach(advice) {
     li.textContent = tip;
     tips.appendChild(li);
   }
+  if (advice.goal) el("goal-select").value = advice.goal;
+}
+
+function renderQuickAdd(foods) {
+  const wrap = el("quick-add");
+  const chips = el("food-chips");
+  chips.innerHTML = "";
+  if (!foods.length) {
+    wrap.classList.add("hidden");
+    return;
+  }
+  wrap.classList.remove("hidden");
+  for (const food of foods) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "chip";
+    btn.innerHTML = `
+      <span class="chip-name"></span>
+      <span class="chip-cals">${food.last_calories.toLocaleString()} kcal</span>
+      <span class="chip-count">×${food.count}</span>
+    `;
+    btn.querySelector(".chip-name").textContent = food.name;
+    btn.addEventListener("click", () => {
+      document.querySelector('input[name="kind"][value="food"]').checked = true;
+      el("description").value = food.name;
+      el("calories").value = food.last_calories;
+      el("calories").focus();
+    });
+    chips.appendChild(btn);
+  }
+}
+
+function renderRank(listEl, foods) {
+  listEl.innerHTML = "";
+  for (const food of foods) {
+    const li = document.createElement("li");
+    const times = food.count === 1 ? "time" : "times";
+    li.innerHTML = `
+      <span class="food-name"></span>
+      <span class="food-count">${food.count} ${times} · ${food.total_calories.toLocaleString()} kcal</span>
+    `;
+    li.querySelector(".food-name").textContent = food.name;
+    listEl.appendChild(li);
+  }
+}
+
+function renderInsights(stats) {
+  const hasData = stats.total_unique > 0;
+  el("insights-empty").classList.toggle("hidden", hasData);
+  document.querySelector(".insights-grid").classList.toggle("hidden", !hasData);
+  if (!hasData) {
+    el("insights-sub").textContent = "";
+    return;
+  }
+  el("insights-sub").textContent =
+    `${stats.total_unique} foods · ${stats.total_food_entries} logged all-time`;
+  renderRank(el("most-eaten"), stats.most_eaten);
+  renderRank(el("least-eaten"), stats.least_eaten);
 }
 
 async function refresh() {
   try {
-    const [data, advice] = await Promise.all([
+    const [data, advice, frequent, stats] = await Promise.all([
       api.summary(datePicker.value),
       api.coach(datePicker.value),
+      api.frequentFoods(6),
+      api.foodStats(5),
     ]);
     render(data);
     renderCoach(advice);
+    renderQuickAdd(frequent);
+    renderInsights(stats);
   } catch (err) {
     console.error(err);
   }
@@ -157,7 +229,12 @@ el("entry-list").addEventListener("click", async (e) => {
 el("save-budget").addEventListener("click", async () => {
   const budget = parseInt(el("budget-input").value, 10);
   if (Number.isNaN(budget)) return;
-  await api.setBudget(budget);
+  await api.updateSettings({ daily_budget: budget });
+  await refresh();
+});
+
+el("goal-select").addEventListener("change", async (e) => {
+  await api.updateSettings({ goal: e.target.value });
   await refresh();
 });
 
