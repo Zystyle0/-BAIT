@@ -223,6 +223,69 @@ def test_trends_window_and_summary(client):
     assert trend["summary"]["avg_net"] == 800  # (1200 + 400) / 2
 
 
+def test_streak_counts_consecutive_days(client):
+    for day in ["2026-08-22", "2026-08-23", "2026-08-24"]:
+        client.post(
+            "/api/entries",
+            json={"entry_date": day, "kind": "food", "description": "X", "calories": 100},
+        )
+    res = client.get("/api/streak?end=2026-08-24").json()
+    assert res["streak"] == 3
+    assert res["logged_today"] is True
+
+
+def test_streak_today_gap_anchors_yesterday(client):
+    for day in ["2026-08-22", "2026-08-23"]:
+        client.post(
+            "/api/entries",
+            json={"entry_date": day, "kind": "food", "description": "X", "calories": 100},
+        )
+    # Nothing logged on 2026-08-24 yet; streak should still count 22-23.
+    res = client.get("/api/streak?end=2026-08-24").json()
+    assert res["streak"] == 2
+    assert res["logged_today"] is False
+
+
+def test_streak_breaks_on_gap(client):
+    for day in ["2026-08-20", "2026-08-21", "2026-08-24"]:
+        client.post(
+            "/api/entries",
+            json={"entry_date": day, "kind": "food", "description": "X", "calories": 100},
+        )
+    res = client.get("/api/streak?end=2026-08-24").json()
+    assert res["streak"] == 1  # 23 empty breaks the run
+
+
+def test_typical_calories_override_and_clear(client):
+    for day, cals in [("2026-08-20", 600), ("2026-08-21", 650)]:
+        client.post(
+            "/api/entries",
+            json={"entry_date": day, "kind": "food", "description": "Bowl", "calories": cals},
+        )
+    bowl = next(f for f in client.get("/api/foods/frequent").json() if f["name"] == "Bowl")
+    assert bowl["typical_calories"] == 650  # defaults to last
+    assert bowl["typical_custom"] is False
+
+    client.put("/api/foods/typical", json={"name": "Bowl", "calories": 700})
+    bowl = next(f for f in client.get("/api/foods/frequent").json() if f["name"] == "Bowl")
+    assert bowl["typical_calories"] == 700 and bowl["typical_custom"] is True
+
+    client.put("/api/foods/typical", json={"name": "bowl", "calories": None})
+    bowl = next(f for f in client.get("/api/foods/frequent").json() if f["name"] == "Bowl")
+    assert bowl["typical_calories"] == 650 and bowl["typical_custom"] is False
+
+
+def test_food_history_series(client):
+    cals = [500, 520, 480]
+    for i, c in enumerate(cals):
+        client.post(
+            "/api/entries",
+            json={"entry_date": f"2026-08-2{i}", "kind": "food", "description": "Wrap", "calories": c},
+        )
+    wrap = next(f for f in client.get("/api/foods/frequent").json() if f["name"] == "Wrap")
+    assert wrap["history"] == cals  # chronological order
+
+
 def test_coach_endpoint_reflects_ledger(client):
     day = "2026-08-24"
     client.put("/api/settings", json={"daily_budget": 2000})

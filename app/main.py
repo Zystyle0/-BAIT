@@ -179,10 +179,21 @@ def coach(entry_date: str | None = None) -> dict:
     return build_advice(summary(entry_date), goal=goal)
 
 
+# Keep only the most recent N calorie values for each food's sparkline.
+FOOD_HISTORY_LIMIT = 12
+
+
 def _favorites(conn) -> set[str]:
     return {
         row["name_key"]
         for row in conn.execute("SELECT name_key FROM food_favorites").fetchall()
+    }
+
+
+def _typicals(conn) -> dict[str, int]:
+    return {
+        row["name_key"]: int(row["calories"])
+        for row in conn.execute("SELECT name_key, calories FROM food_typical").fetchall()
     }
 
 
@@ -197,6 +208,7 @@ def _food_stats(conn) -> list[dict]:
         "WHERE kind = 'food' ORDER BY id ASC"
     ).fetchall()
     favorites = _favorites(conn)
+    typicals = _typicals(conn)
     agg: dict[str, dict] = {}
     for r in rows:
         name = r["description"].strip()
@@ -209,6 +221,7 @@ def _food_stats(conn) -> list[dict]:
                 "total_calories": 0,
                 "last_calories": 0,
                 "last_eaten": None,
+                "history": [],
             },
         )
         item["count"] += 1
@@ -216,10 +229,16 @@ def _food_stats(conn) -> list[dict]:
         item["name"] = name  # most recent (rows are id-ascending) wins
         item["last_calories"] = int(r["calories"])
         item["last_eaten"] = r["entry_date"]
+        item["history"].append(int(r["calories"]))
     foods = list(agg.values())
     for item in foods:
+        key = item["name"].lower()
         item["avg_calories"] = round(item["total_calories"] / item["count"])
-        item["favorite"] = item["name"].lower() in favorites
+        item["favorite"] = key in favorites
+        item["history"] = item["history"][-FOOD_HISTORY_LIMIT:]
+        # Typical calories used to prefill quick-add: user override, else last.
+        item["typical_calories"] = typicals.get(key, item["last_calories"])
+        item["typical_custom"] = key in typicals
     foods.sort(key=lambda x: (-x["count"], -x["total_calories"], x["name"].lower()))
     return foods
 
@@ -227,6 +246,12 @@ def _food_stats(conn) -> list[dict]:
 class FavoriteIn(BaseModel):
     name: str = Field(..., min_length=1, max_length=120)
     favorite: bool = True
+
+
+class TypicalIn(BaseModel):
+    name: str = Field(..., min_length=1, max_length=120)
+    # None clears the override and falls back to the last logged value.
+    calories: int | None = Field(None, ge=0, le=20000)
 
 
 @app.put("/api/foods/favorite")
@@ -241,6 +266,22 @@ def set_favorite(payload: FavoriteIn) -> dict:
         else:
             conn.execute("DELETE FROM food_favorites WHERE name_key = ?", (key,))
     return {"name": payload.name.strip(), "favorite": payload.favorite}
+
+
+@app.put("/api/foods/typical")
+def set_typical(payload: TypicalIn) -> dict:
+    """Set (or clear) the typical calories used to prefill quick-add for a food."""
+    key = payload.name.strip().lower()
+    with get_connection() as conn:
+        if payload.calories is None:
+            conn.execute("DELETE FROM food_typical WHERE name_key = ?", (key,))
+        else:
+            conn.execute(
+                "INSERT INTO food_typical(name_key, calories) VALUES (?, ?) "
+                "ON CONFLICT(name_key) DO UPDATE SET calories = excluded.calories",
+                (key, payload.calories),
+            )
+    return {"name": payload.name.strip(), "typical_calories": payload.calories}
 
 
 @app.get("/api/foods/frequent")
@@ -327,6 +368,39 @@ def trends(days: int = 7, end: str | None = None) -> dict:
             "avg_net": avg_net,
             "avg_consumed": avg_consumed,
         },
+    }
+
+
+@app.get("/api/streak")
+def streak(end: str | None = None) -> dict:
+    """Current run of consecutive days (ending today/yesterday) with any entry.
+
+    A not-yet-logged current day does not break the streak: if ``end`` has no
+    entries, the count anchors on the previous day instead.
+    """
+    end_date = date.fromisoformat(end) if end else date.today()
+    with get_connection() as conn:
+        logged = {
+            row["entry_date"]
+            for row in conn.execute(
+                "SELECT DISTINCT entry_date FROM entries"
+            ).fetchall()
+        }
+
+    anchor = end_date
+    if anchor.isoformat() not in logged:
+        anchor = anchor - timedelta(days=1)
+
+    count = 0
+    cursor = anchor
+    while cursor.isoformat() in logged:
+        count += 1
+        cursor -= timedelta(days=1)
+
+    return {
+        "end": end_date.isoformat(),
+        "streak": count,
+        "logged_today": end_date.isoformat() in logged,
     }
 
 

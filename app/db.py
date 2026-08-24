@@ -59,6 +59,11 @@ def init_db() -> None:
             CREATE TABLE IF NOT EXISTS food_favorites (
                 name_key TEXT PRIMARY KEY
             );
+
+            CREATE TABLE IF NOT EXISTS food_typical (
+                name_key TEXT PRIMARY KEY,
+                calories INTEGER NOT NULL CHECK (calories >= 0)
+            );
             """
         )
         conn.execute(

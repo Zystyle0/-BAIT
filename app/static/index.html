@@ -21,7 +21,14 @@
             <p class="tagline">Budget your calories like money</p>
           </div>
         </div>
-        <input type="date" id="date-picker" class="date-picker" />
+        <div class="topbar-right">
+          <div class="streak-badge" id="streak-badge" title="Consecutive days logged" hidden>
+            <span class="streak-flame">🔥</span>
+            <span class="streak-count" id="streak-count">0</span>
+            <span class="streak-word" id="streak-word">day streak</span>
+          </div>
+          <input type="date" id="date-picker" class="date-picker" />
+        </div>
       </header>
 
       <section class="balance-card">

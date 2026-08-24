@@ -66,6 +66,45 @@ body {
   gap: 14px;
 }
 
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.streak-badge[hidden] {
+  display: none;
+}
+
+.streak-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(251, 146, 60, 0.22), rgba(251, 191, 36, 0.14));
+  border: 1px solid color-mix(in srgb, #fb923c 45%, transparent);
+  box-shadow: 0 0 16px rgba(251, 146, 60, 0.18);
+  white-space: nowrap;
+}
+
+.streak-flame {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.streak-count {
+  font-size: 16px;
+  font-weight: 800;
+  color: #fdba74;
+}
+
+.streak-word {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
 .logo {
   font-size: 40px;
   filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4));
@@ -572,6 +611,58 @@ input:focus {
   box-shadow:
     0 0 0 1px color-mix(in srgb, var(--warn) 45%, transparent),
     0 4px 16px color-mix(in srgb, var(--warn) 25%, transparent);
+}
+
+.chip-edit {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px;
+  line-height: 1;
+  transition: color 0.15s ease, transform 0.12s ease;
+}
+
+.chip-edit:hover {
+  color: var(--accent);
+  transform: scale(1.15);
+}
+
+.chip-cal-input {
+  width: 62px;
+  padding: 4px 8px;
+  font-size: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+  background: var(--bg);
+  color: var(--text);
+  font-family: inherit;
+}
+
+.chip-cal-input::-webkit-outer-spin-button,
+.chip-cal-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.sparkline {
+  flex-shrink: 0;
+  width: 62px;
+  height: 20px;
+  display: block;
+}
+
+.sparkline polyline {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sparkline circle {
+  fill: var(--accent);
 }
 
 .insights-grid.hidden {

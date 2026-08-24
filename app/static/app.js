@@ -55,7 +55,68 @@ const api = {
     if (!res.ok) throw new Error("Failed to update favorite");
     return res.json();
   },
+  async setTypical(name, calories) {
+    const res = await fetch("/api/foods/typical", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, calories }),
+    });
+    if (!res.ok) throw new Error("Failed to update typical calories");
+    return res.json();
+  },
+  async streak(end) {
+    const res = await fetch(`/api/streak?end=${end}`);
+    if (!res.ok) throw new Error("Failed to load streak");
+    return res.json();
+  },
 };
+
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+function sparkline(history) {
+  const w = 62;
+  const h = 20;
+  const pad = 2;
+  const svg = document.createElementNS(SVG_NS, "svg");
+  svg.setAttribute("class", "sparkline");
+  svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+  svg.setAttribute("preserveAspectRatio", "none");
+  const data = history || [];
+  if (data.length === 0) return svg;
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+  const n = data.length;
+  const coords = data.map((v, i) => {
+    const x = n === 1 ? w / 2 : pad + (i / (n - 1)) * (w - 2 * pad);
+    const y = h - pad - ((v - min) / range) * (h - 2 * pad);
+    return [x, y];
+  });
+  if (n > 1) {
+    const pl = document.createElementNS(SVG_NS, "polyline");
+    pl.setAttribute("points", coords.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" "));
+    svg.appendChild(pl);
+  }
+  const [lx, ly] = coords[coords.length - 1];
+  const dot = document.createElementNS(SVG_NS, "circle");
+  dot.setAttribute("cx", lx.toFixed(1));
+  dot.setAttribute("cy", ly.toFixed(1));
+  dot.setAttribute("r", "1.8");
+  svg.appendChild(dot);
+  svg.setAttribute("title", `${data.length} recent: ${data.join(", ")} kcal`);
+  return svg;
+}
+
+function renderStreak(data) {
+  const badge = el("streak-badge");
+  if (data.streak > 0) {
+    el("streak-count").textContent = data.streak;
+    el("streak-word").textContent = data.streak === 1 ? "day streak" : "days streak";
+    badge.hidden = false;
+  } else {
+    badge.hidden = true;
+  }
+}
 
 let trendDays = 7;
 
@@ -166,6 +227,41 @@ function makeStar(food) {
   return star;
 }
 
+function startTypicalEdit(chip, food) {
+  const cals = chip.querySelector(".chip-cals");
+  if (!cals || chip.querySelector(".chip-cal-input")) return;
+  const input = document.createElement("input");
+  input.type = "number";
+  input.className = "chip-cal-input";
+  input.value = food.typical_calories;
+  input.min = "0";
+  input.max = "20000";
+  let done = false;
+  const commit = async (save) => {
+    if (done) return;
+    done = true;
+    if (save) {
+      const v = parseInt(input.value, 10);
+      if (!Number.isNaN(v)) await api.setTypical(food.name, v);
+    }
+    await refresh();
+  };
+  input.addEventListener("click", (e) => e.stopPropagation());
+  input.addEventListener("keydown", (e) => {
+    e.stopPropagation();
+    if (e.key === "Enter") {
+      e.preventDefault();
+      commit(true);
+    } else if (e.key === "Escape") {
+      commit(false);
+    }
+  });
+  input.addEventListener("blur", () => commit(true));
+  cals.replaceWith(input);
+  input.focus();
+  input.select();
+}
+
 function renderQuickAdd(foods) {
   const wrap = el("quick-add");
   const chips = el("food-chips");
@@ -179,17 +275,30 @@ function renderQuickAdd(foods) {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "chip" + (food.favorite ? " is-fav" : "");
+    const custom = food.typical_custom ? " title=\"custom typical calories\"" : "";
     btn.innerHTML = `
       <span class="chip-name"></span>
-      <span class="chip-cals">${food.last_calories.toLocaleString()} kcal</span>
+      <span class="chip-cals"${custom}>${food.typical_calories.toLocaleString()} kcal${food.typical_custom ? " ✎" : ""}</span>
       <span class="chip-count">×${food.count}</span>
     `;
     btn.querySelector(".chip-name").textContent = food.name;
+    if (food.favorite) {
+      const edit = document.createElement("button");
+      edit.type = "button";
+      edit.className = "chip-edit";
+      edit.textContent = "✎";
+      edit.title = "Edit typical calories";
+      edit.addEventListener("click", (e) => {
+        e.stopPropagation();
+        startTypicalEdit(btn, food);
+      });
+      btn.appendChild(edit);
+    }
     btn.appendChild(makeStar(food));
     btn.addEventListener("click", () => {
       document.querySelector('input[name="kind"][value="food"]').checked = true;
       el("description").value = food.name;
-      el("calories").value = food.last_calories;
+      el("calories").value = food.typical_calories;
       el("calories").focus();
     });
     chips.appendChild(btn);
@@ -208,7 +317,7 @@ function renderRank(listEl, foods) {
     count.className = "food-count";
     count.textContent =
       `${food.count} ${times} · avg ${food.avg_calories.toLocaleString()} kcal`;
-    li.append(name, count, makeStar(food));
+    li.append(name, sparkline(food.history), count, makeStar(food));
     listEl.appendChild(li);
   }
 }
@@ -283,18 +392,20 @@ function renderTrends(data) {
 
 async function refresh() {
   try {
-    const [data, advice, frequent, stats, trend] = await Promise.all([
+    const [data, advice, frequent, stats, trend, streakData] = await Promise.all([
       api.summary(datePicker.value),
       api.coach(datePicker.value),
       api.frequentFoods(6),
       api.foodStats(5),
       api.trends(trendDays, datePicker.value),
+      api.streak(datePicker.value),
     ]);
     render(data);
     renderCoach(advice);
     renderQuickAdd(frequent);
     renderInsights(stats);
     renderTrends(trend);
+    renderStreak(streakData);
   } catch (err) {
     console.error(err);
   }
