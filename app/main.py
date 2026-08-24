@@ -30,6 +30,16 @@ async def lifespan(_: FastAPI):
 app = FastAPI(title="Calorie Bank", version="1.0.0", lifespan=lifespan)
 
 
+@app.middleware("http")
+async def no_store_assets(request, call_next):
+    """Serve the SPA and its static assets uncached so updates always show."""
+    response = await call_next(request)
+    path = request.url.path
+    if path == "/" or path.startswith("/static"):
+        response.headers["Cache-Control"] = "no-store"
+    return response
+
+
 class EntryIn(BaseModel):
     entry_date: str = Field(..., description="ISO date, e.g. 2026-08-09")
     kind: str = Field(..., pattern="^(food|activity)$")
