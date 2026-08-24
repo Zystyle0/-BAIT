@@ -146,15 +146,22 @@ async function toggleFavorite(name, makeFav) {
 }
 
 function makeStar(food) {
-  const star = document.createElement("button");
-  star.type = "button";
+  // A span (not a button) so it is valid markup inside the chip button too.
+  const star = document.createElement("span");
   star.className = "fav-star";
+  star.setAttribute("role", "button");
+  star.setAttribute("tabindex", "0");
   star.dataset.fav = String(food.favorite);
   star.textContent = food.favorite ? "★" : "☆";
   star.title = food.favorite ? "Unpin favorite" : "Pin as favorite";
-  star.addEventListener("click", (e) => {
+  const toggle = (e) => {
     e.stopPropagation();
+    e.preventDefault();
     toggleFavorite(food.name, !food.favorite);
+  };
+  star.addEventListener("click", toggle);
+  star.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") toggle(e);
   });
   return star;
 }
