@@ -260,14 +260,17 @@ function renderTrends(data) {
   const chart = el("trend-chart");
   chart.innerHTML = "";
   const budget = data.daily_budget;
-  const maxVal = Math.max(budget, ...data.points.map((p) => p.net), 1);
-  chart.style.setProperty("--budget-pct", ((budget / maxVal) * 100).toFixed(1));
+  // Add headroom so the budget line sits clearly inside the chart (not pinned
+  // to the very top) even when nothing exceeds the budget.
+  const rawMax = Math.max(budget, ...data.points.map((p) => p.net), 1);
+  const chartMax = rawMax * 1.18;
+  chart.style.setProperty("--budget-pct", ((budget / chartMax) * 100).toFixed(1));
   data.points.forEach((p, i) => {
     const bar = document.createElement("div");
     bar.className = "trend-bar";
     bar.dataset.over = String(p.over);
     bar.dataset.logged = String(p.logged);
-    const h = (Math.max(0, p.net) / maxVal) * 100;
+    const h = (Math.max(0, p.net) / chartMax) * 100;
     const label = barLabel(p.date, data.days, i, data.points.length);
     bar.innerHTML = `
       <div class="bar-fill" style="height:${h.toFixed(1)}%"
