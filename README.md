@@ -13,6 +13,9 @@ a lightweight vanilla-JS single-page frontend served directly by FastAPI.
 - Log food (withdrawals) and activity (deposits) as transactions
 - Live balance ring that turns red when you go over budget
 - Per-day ledger with a date picker; all data persisted in SQLite
+- **Calorie Coach**: a built-in, rules-based advisor that reacts to your ledger
+  in real time with a status (on track / heads up / over budget) and actionable
+  tips — no API key or external service required
 
 ## Requirements
 
@@ -35,6 +38,7 @@ Then open http://localhost:8000.
 | Method | Path | Description |
 | --- | --- | --- |
 | `GET` | `/api/summary?entry_date=YYYY-MM-DD` | Budget, totals, balance, and entries for a day |
+| `GET` | `/api/coach?entry_date=YYYY-MM-DD` | Coach advice: status, headline, message, and tips for a day |
 | `GET` | `/api/entries?entry_date=YYYY-MM-DD` | List entries (all if no date) |
 | `POST` | `/api/entries` | Create an entry (`kind` = `food` \| `activity`) |
 | `DELETE` | `/api/entries/{id}` | Delete an entry |
