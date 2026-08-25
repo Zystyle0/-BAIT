@@ -314,10 +314,71 @@ def food_insights(limit: int = 5) -> dict:
     }
 
 
+def _auto_bucket(days: int) -> str:
+    if days <= 31:
+        return "day"
+    if days <= 168:
+        return "week"
+    return "month"
+
+
+def _bucket_points(daily: list[dict], mode: str, budget: int) -> list[dict]:
+    """Collapse a list of per-day points into day/week/month buckets.
+
+    Each bucket reports the *average daily net* over its logged days so it stays
+    comparable to the daily budget reference line.
+    """
+    def summarize(chunk: list[dict], label: str) -> dict:
+        logged = [p for p in chunk if p["logged"]]
+        n = len(logged)
+        avg_net = round(sum(p["net"] for p in logged) / n) if n else 0
+        return {
+            "label": label,
+            "start": chunk[0]["date"],
+            "end": chunk[-1]["date"],
+            "net": avg_net,
+            "logged": n > 0,
+            "over": n > 0 and avg_net > budget,
+            "days_logged": n,
+        }
+
+    if mode == "day":
+        out = []
+        for p in daily:
+            d = date.fromisoformat(p["date"])
+            label = d.strftime("%a") if len(daily) <= 14 else str(d.day)
+            out.append({**p, "label": label})
+        return out
+
+    buckets: list[dict] = []
+    if mode == "week":
+        for i in range(0, len(daily), 7):
+            chunk = daily[i : i + 7]
+            start = date.fromisoformat(chunk[0]["date"])
+            buckets.append(summarize(chunk, f"{start.month}/{start.day}"))
+        return buckets
+
+    # month
+    groups: dict[str, list[dict]] = {}
+    order: list[str] = []
+    for p in daily:
+        d = date.fromisoformat(p["date"])
+        key = f"{d.year}-{d.month:02d}"
+        if key not in groups:
+            groups[key] = []
+            order.append(key)
+        groups[key].append(p)
+    for key in order:
+        chunk = groups[key]
+        start = date.fromisoformat(chunk[0]["date"])
+        buckets.append(summarize(chunk, start.strftime("%b")))
+    return buckets
+
+
 @app.get("/api/trends")
-def trends(days: int = 7, end: str | None = None) -> dict:
-    """Daily calorie totals over a trailing window, with summary stats."""
-    days = max(1, min(days, 90))
+def trends(days: int = 7, end: str | None = None, bucket: str = "auto") -> dict:
+    """Calorie trend over a trailing window, bucketed by day/week/month."""
+    days = max(1, min(days, 366))
     end_date = date.fromisoformat(end) if end else date.today()
     start_date = end_date - timedelta(days=days - 1)
     with get_connection() as conn:
@@ -332,14 +393,14 @@ def trends(days: int = 7, end: str | None = None) -> dict:
     for r in rows:
         by_day.setdefault(r["entry_date"], {})[r["kind"]] = int(r["total"])
 
-    points = []
+    daily = []
     for offset in range(days):
         d = (start_date + timedelta(days=offset)).isoformat()
         consumed = by_day.get(d, {}).get("food", 0)
         earned = by_day.get(d, {}).get("activity", 0)
         net = consumed - earned
         logged = d in by_day
-        points.append(
+        daily.append(
             {
                 "date": d,
                 "consumed": consumed,
@@ -350,21 +411,25 @@ def trends(days: int = 7, end: str | None = None) -> dict:
             }
         )
 
-    logged_points = [p for p in points if p["logged"]]
-    days_logged = len(logged_points)
-    total_consumed = sum(p["consumed"] for p in points)
-    avg_net = round(sum(p["net"] for p in logged_points) / days_logged) if days_logged else 0
+    mode = bucket if bucket in ("day", "week", "month") else _auto_bucket(days)
+    points = _bucket_points(daily, mode, budget)
+
+    logged_days = [p for p in daily if p["logged"]]
+    days_logged = len(logged_days)
+    total_consumed = sum(p["consumed"] for p in daily)
+    avg_net = round(sum(p["net"] for p in logged_days) / days_logged) if days_logged else 0
     avg_consumed = round(total_consumed / days_logged) if days_logged else 0
 
     return {
         "days": days,
         "start": start_date.isoformat(),
         "end": end_date.isoformat(),
+        "bucket": mode,
         "daily_budget": budget,
         "points": points,
         "summary": {
             "days_logged": days_logged,
-            "days_over": sum(1 for p in logged_points if p["over"]),
+            "days_over": sum(1 for p in logged_days if p["over"]),
             "total_consumed": total_consumed,
             "avg_net": avg_net,
             "avg_consumed": avg_consumed,
@@ -372,24 +437,16 @@ def trends(days: int = 7, end: str | None = None) -> dict:
     }
 
 
-@app.get("/api/calendar")
-def calendar_month(year: int | None = None, month: int | None = None) -> dict:
-    """Per-day calorie data for a month, for calendar heatmaps."""
-    today = date.today()
-    y = year or today.year
-    m = month or today.month
-    if not (1 <= m <= 12):
-        raise HTTPException(status_code=422, detail="month must be 1-12")
+def _month_data(conn, y: int, m: int) -> dict:
     num_days = calmod.monthrange(y, m)[1]
     first = date(y, m, 1)
     last = date(y, m, num_days)
-    with get_connection() as conn:
-        budget = _get_budget(conn)
-        rows = conn.execute(
-            "SELECT entry_date, kind, COALESCE(SUM(calories), 0) AS total "
-            "FROM entries WHERE entry_date BETWEEN ? AND ? GROUP BY entry_date, kind",
-            (first.isoformat(), last.isoformat()),
-        ).fetchall()
+    budget = _get_budget(conn)
+    rows = conn.execute(
+        "SELECT entry_date, kind, COALESCE(SUM(calories), 0) AS total "
+        "FROM entries WHERE entry_date BETWEEN ? AND ? GROUP BY entry_date, kind",
+        (first.isoformat(), last.isoformat()),
+    ).fetchall()
 
     by_day: dict[str, dict[str, int]] = {}
     for r in rows:
@@ -429,6 +486,41 @@ def calendar_month(year: int | None = None, month: int | None = None) -> dict:
             "consumed_total": sum(x["consumed"] for x in days),
         },
     }
+
+
+@app.get("/api/calendar")
+def calendar_month(year: int | None = None, month: int | None = None) -> dict:
+    """Per-day calorie data for a month, for calendar heatmaps."""
+    today = date.today()
+    y = year or today.year
+    m = month or today.month
+    if not (1 <= m <= 12):
+        raise HTTPException(status_code=422, detail="month must be 1-12")
+    with get_connection() as conn:
+        return _month_data(conn, y, m)
+
+
+@app.get("/api/calendar/range")
+def calendar_range(
+    year: int | None = None, month: int | None = None, months: int = 3
+) -> dict:
+    """Return the last ``months`` months of calendar data ending at year/month.
+
+    Months are returned oldest-first so they read left-to-right / top-to-bottom.
+    """
+    today = date.today()
+    y = year or today.year
+    m = month or today.month
+    if not (1 <= m <= 12):
+        raise HTTPException(status_code=422, detail="month must be 1-12")
+    months = max(1, min(months, 12))
+    result = []
+    with get_connection() as conn:
+        for back in range(months - 1, -1, -1):
+            total = (y * 12 + (m - 1)) - back
+            yy, mm = divmod(total, 12)
+            result.append(_month_data(conn, yy, mm + 1))
+    return {"months": months, "end_year": y, "end_month": m, "data": result}
 
 
 @app.get("/api/streak")

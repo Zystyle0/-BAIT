@@ -126,10 +126,12 @@
         <div class="trends-head">
           <h2>Trends</h2>
           <div class="range-toggle" id="range-toggle">
-            <button type="button" class="range-btn is-active" data-days="7">
-              Week
-            </button>
-            <button type="button" class="range-btn" data-days="30">Month</button>
+            <button type="button" class="range-btn is-active" data-days="7">1W</button>
+            <button type="button" class="range-btn" data-days="14">2W</button>
+            <button type="button" class="range-btn" data-days="28">4W</button>
+            <button type="button" class="range-btn" data-days="90">3M</button>
+            <button type="button" class="range-btn" data-days="180">6M</button>
+            <button type="button" class="range-btn" data-days="365">1Y</button>
           </div>
         </div>
         <div class="trend-summary" id="trend-summary"></div>
@@ -154,16 +156,20 @@
             </button>
           </div>
         </div>
-        <div class="calendar-nav">
-          <button type="button" class="cal-nav-btn" id="cal-prev" title="Previous month">‹</button>
-          <span class="cal-title" id="cal-title">—</span>
-          <button type="button" class="cal-nav-btn" id="cal-next" title="Next month">›</button>
+        <div class="calendar-controls">
+          <div class="cal-spans" id="cal-spans">
+            <button type="button" class="cal-span-btn is-active" data-months="1">1 mo</button>
+            <button type="button" class="cal-span-btn" data-months="3">3 mo</button>
+            <button type="button" class="cal-span-btn" data-months="6">6 mo</button>
+            <button type="button" class="cal-span-btn" data-months="12">1 yr</button>
+          </div>
+          <div class="calendar-nav">
+            <button type="button" class="cal-nav-btn" id="cal-prev" title="Earlier">‹</button>
+            <span class="cal-title" id="cal-range-title">—</span>
+            <button type="button" class="cal-nav-btn" id="cal-next" title="Later">›</button>
+          </div>
         </div>
-        <div class="cal-weekdays">
-          <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span>
-          <span>Thu</span><span>Fri</span><span>Sat</span>
-        </div>
-        <div class="cal-grid" id="cal-grid"></div>
+        <div class="cal-months" id="cal-months"></div>
         <div class="cal-legend" id="cal-legend"></div>
       </section>
 

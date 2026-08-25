@@ -321,6 +321,50 @@ def test_calendar_rejects_bad_month(client):
     assert client.get("/api/calendar?year=2026&month=13").status_code == 422
 
 
+def test_calendar_range_returns_months_oldest_first(client):
+    rng = client.get("/api/calendar/range?year=2026&month=8&months=3").json()
+    assert rng["months"] == 3
+    names = [(m["year"], m["month"]) for m in rng["data"]]
+    assert names == [(2026, 6), (2026, 7), (2026, 8)]
+
+
+def test_calendar_range_crosses_year_boundary(client):
+    rng = client.get("/api/calendar/range?year=2026&month=2&months=4").json()
+    names = [(m["year"], m["month"]) for m in rng["data"]]
+    assert names == [(2025, 11), (2025, 12), (2026, 1), (2026, 2)]
+
+
+def test_trends_auto_buckets_by_range(client):
+    day = client.get("/api/trends?days=7&end=2026-08-25").json()
+    assert day["bucket"] == "day" and len(day["points"]) == 7
+    assert "date" in day["points"][0] and "label" in day["points"][0]
+
+    week = client.get("/api/trends?days=90&end=2026-08-25").json()
+    assert week["bucket"] == "week" and len(week["points"]) == 13
+
+    month = client.get("/api/trends?days=365&end=2026-08-25").json()
+    assert month["bucket"] == "month" and len(month["points"]) == 13
+
+
+def test_trends_week_bucket_averages_daily_net(client):
+    client.put("/api/settings", json={"daily_budget": 2000})
+    # Two logged days in the trailing week window ending 2026-08-25.
+    client.post(
+        "/api/entries",
+        json={"entry_date": "2026-08-24", "kind": "food", "description": "A", "calories": 1000},
+    )
+    client.post(
+        "/api/entries",
+        json={"entry_date": "2026-08-25", "kind": "food", "description": "B", "calories": 1400},
+    )
+    trend = client.get("/api/trends?days=60&end=2026-08-25&bucket=week").json()
+    assert trend["bucket"] == "week"
+    last = trend["points"][-1]
+    # avg daily net over the two logged days in the final week = (1000+1400)/2.
+    assert last["net"] == 1200
+    assert last["logged"] is True
+
+
 def test_coach_endpoint_reflects_ledger(client):
     day = "2026-08-24"
     client.put("/api/settings", json={"daily_budget": 2000})

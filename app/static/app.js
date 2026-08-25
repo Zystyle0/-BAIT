@@ -69,14 +69,17 @@ const api = {
     if (!res.ok) throw new Error("Failed to load streak");
     return res.json();
   },
-  async calendar(year, month) {
-    const res = await fetch(`/api/calendar?year=${year}&month=${month}`);
+  async calendarRange(year, month, months) {
+    const res = await fetch(
+      `/api/calendar/range?year=${year}&month=${month}&months=${months}`
+    );
     if (!res.ok) throw new Error("Failed to load calendar");
     return res.json();
   },
 };
 
-const calState = { year: null, month: null, metric: "calories", data: null };
+const calState = { year: null, month: null, span: 1, metric: "calories", data: null };
+const WEEKDAY_LETTERS = ["S", "M", "T", "W", "T", "F", "S"];
 
 const CAL_PALETTE = {
   calories: [
@@ -160,23 +163,41 @@ function renderCalLegend() {
   }
 }
 
-function renderCalendar(data) {
-  calState.data = data;
-  calState.year = data.year;
-  calState.month = data.month;
-  el("cal-title").textContent = `${data.month_name} ${data.year}`;
-  const grid = el("cal-grid");
-  grid.innerHTML = "";
-  for (let i = 0; i < data.lead_blanks; i++) {
+function jumpToDate(dateStr) {
+  datePicker.value = dateStr;
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  refresh();
+}
+
+function renderMonthBlock(month, today) {
+  const block = document.createElement("div");
+  block.className = "cal-month";
+
+  const title = document.createElement("div");
+  title.className = "cal-month-title";
+  title.textContent = `${month.month_name} ${month.year}`;
+  block.appendChild(title);
+
+  const wk = document.createElement("div");
+  wk.className = "cal-weekdays";
+  for (const letter of WEEKDAY_LETTERS) {
+    const s = document.createElement("span");
+    s.textContent = letter;
+    wk.appendChild(s);
+  }
+  block.appendChild(wk);
+
+  const grid = document.createElement("div");
+  grid.className = "cal-grid";
+  for (let i = 0; i < month.lead_blanks; i++) {
     const blank = document.createElement("div");
     blank.className = "cal-cell is-blank";
     grid.appendChild(blank);
   }
-  const today = todayISO();
-  for (const d of data.days) {
+  for (const d of month.days) {
     const cell = document.createElement("div");
     cell.className = "cal-cell";
-    const style = calCellStyle(calState.metric, d, data.daily_budget);
+    const style = calCellStyle(calState.metric, d, month.daily_budget);
     if (style.empty) {
       cell.classList.add("is-empty");
       cell.dataset.hasData = "false";
@@ -186,20 +207,37 @@ function renderCalendar(data) {
     }
     if (d.date === today) cell.classList.add("is-today");
     cell.title = d.logged
-      ? `${d.date}: ${d.consumed.toLocaleString()} in · ${d.earned.toLocaleString()} out · net ${d.net.toLocaleString()}`
-      : `${d.date}: no entries`;
+      ? `${d.date}: ${d.consumed.toLocaleString()} in · ${d.earned.toLocaleString()} out · net ${d.net.toLocaleString()} (click to open)`
+      : `${d.date}: no entries (click to open)`;
+    cell.addEventListener("click", () => jumpToDate(d.date));
     const num = document.createElement("span");
     num.className = "cal-daynum";
     num.textContent = d.day;
     cell.appendChild(num);
     grid.appendChild(cell);
   }
-  renderCalLegend();
+  block.appendChild(grid);
+  return block;
 }
 
-async function loadCalendar() {
-  const data = await api.calendar(calState.year, calState.month);
-  renderCalendar(data);
+function renderCalendar(range) {
+  calState.data = range;
+  const months = range.data;
+  const first = months[0];
+  const last = months[months.length - 1];
+  el("cal-range-title").textContent =
+    months.length === 1
+      ? `${last.month_name} ${last.year}`
+      : `${first.month_name} ${first.year} – ${last.month_name} ${last.year}`;
+
+  const container = el("cal-months");
+  container.classList.toggle("dense", calState.span >= 6);
+  container.innerHTML = "";
+  const today = todayISO();
+  for (const month of months) {
+    container.appendChild(renderMonthBlock(month, today));
+  }
+  renderCalLegend();
 }
 
 function shiftMonth(delta) {
@@ -215,6 +253,11 @@ function shiftMonth(delta) {
   calState.year = y;
   calState.month = m;
   loadCalendar();
+}
+
+async function loadCalendar() {
+  const range = await api.calendarRange(calState.year, calState.month, calState.span);
+  renderCalendar(range);
 }
 
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -486,15 +529,6 @@ function renderInsights(stats) {
   renderRank(el("least-eaten"), stats.least_eaten);
 }
 
-function barLabel(dateStr, days, index, total) {
-  const d = new Date(dateStr + "T00:00:00");
-  if (days <= 10) {
-    return d.toLocaleDateString(undefined, { weekday: "short" });
-  }
-  if (index % 5 === 0 || index === total - 1) return String(d.getDate());
-  return "";
-}
-
 function renderTrends(data) {
   const anyLogged = data.summary.days_logged > 0;
   el("trends").classList.toggle("hidden", !anyLogged);
@@ -530,11 +564,11 @@ function renderTrends(data) {
     bar.dataset.over = String(p.over);
     bar.dataset.logged = String(p.logged);
     const h = (Math.max(0, p.net) / chartMax) * 100;
-    const label = barLabel(p.date, data.days, i, data.points.length);
+    const unit = data.bucket === "day" ? "net kcal" : "avg net/day";
     bar.innerHTML = `
       <div class="bar-fill" style="height:${h.toFixed(1)}%"
-           title="${p.date}: ${p.net.toLocaleString()} net kcal${p.logged ? "" : " (no entries)"}"></div>
-      <span class="bar-label">${label}</span>
+           title="${p.label}: ${p.net.toLocaleString()} ${unit}${p.logged ? "" : " (no entries)"}"></div>
+      <span class="bar-label">${p.label}</span>
     `;
     chart.appendChild(bar);
   });
@@ -549,7 +583,7 @@ async function refresh() {
       api.foodStats(5),
       api.trends(trendDays, datePicker.value),
       api.streak(datePicker.value),
-      api.calendar(calState.year, calState.month),
+      api.calendarRange(calState.year, calState.month, calState.span),
     ]);
     render(data);
     renderCoach(advice);
@@ -581,6 +615,16 @@ el("cal-metrics").addEventListener("click", (e) => {
     b.classList.toggle("is-active", b === btn);
   }
   if (calState.data) renderCalendar(calState.data);
+});
+
+el("cal-spans").addEventListener("click", (e) => {
+  const btn = e.target.closest(".cal-span-btn");
+  if (!btn) return;
+  calState.span = parseInt(btn.dataset.months, 10);
+  for (const b of el("cal-spans").querySelectorAll(".cal-span-btn")) {
+    b.classList.toggle("is-active", b === btn);
+  }
+  loadCalendar();
 });
 
 el("entry-form").addEventListener("submit", async (e) => {
