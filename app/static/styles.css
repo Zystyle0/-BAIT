@@ -1,18 +1,30 @@
 :root {
-  --bg: #070c17;
-  --bg-soft: #111c30;
-  --card: rgba(24, 34, 54, 0.72);
-  --card-2: rgba(38, 51, 76, 0.7);
-  --text: #eef2f9;
-  --muted: #9aa8c0;
+  /* Duke blue + sky blue identity */
+  --duke: #012169;
+  --duke-strong: #0a2f8f;
+  --sky: #38bdf8;
+  --sky-soft: #7dd3fc;
+  --sky-faint: #bae6fd;
+
+  --bg: #030b22;
+  --bg-soft: #0a1a42;
+  --card: rgba(11, 27, 63, 0.74);
+  --card-2: rgba(18, 40, 84, 0.7);
+  --text: #eaf1ff;
+  --muted: #9fb3d8;
   --accent: #38bdf8;
-  --accent-2: #818cf8;
+  --accent-2: #7dd3fc;
   --deposit: #34d399;
   --withdraw: #fb7185;
   --danger: #f43f5e;
   --warn: #fbbf24;
-  --border: rgba(148, 163, 184, 0.16);
-  --shadow: 0 18px 40px rgba(2, 6, 20, 0.45);
+  --border: rgba(125, 211, 252, 0.16);
+  --shadow: 0 18px 40px rgba(1, 10, 34, 0.5);
+
+  /* White buttons with Duke-blue labels */
+  --btn-bg: #ffffff;
+  --btn-fg: #012169;
+  --btn-glow: rgba(56, 189, 248, 0.4);
 }
 
 * {
@@ -25,9 +37,9 @@ body {
   font-family: "Inter", system-ui, -apple-system, sans-serif;
   background-color: var(--bg);
   background-image:
-    radial-gradient(900px 520px at 12% -8%, rgba(56, 189, 248, 0.20), transparent 60%),
-    radial-gradient(820px 520px at 100% 0%, rgba(129, 140, 248, 0.20), transparent 55%),
-    radial-gradient(1000px 700px at 50% 120%, rgba(52, 211, 153, 0.16), transparent 60%);
+    radial-gradient(900px 520px at 12% -8%, rgba(1, 33, 105, 0.65), transparent 60%),
+    radial-gradient(820px 520px at 100% 0%, rgba(56, 189, 248, 0.24), transparent 55%),
+    radial-gradient(1000px 720px at 50% 120%, rgba(10, 47, 143, 0.5), transparent 62%);
   background-attachment: fixed;
   color: var(--text);
   min-height: 100vh;
@@ -117,9 +129,9 @@ body {
   gap: 6px;
   padding: 8px 14px;
   border-radius: 999px;
-  background: linear-gradient(135deg, rgba(251, 146, 60, 0.22), rgba(251, 191, 36, 0.14));
-  border: 1px solid color-mix(in srgb, #fb923c 45%, transparent);
-  box-shadow: 0 0 16px rgba(251, 146, 60, 0.18);
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.22), rgba(1, 33, 105, 0.35));
+  border: 1px solid color-mix(in srgb, var(--sky) 45%, transparent);
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.2);
   white-space: nowrap;
 }
 
@@ -131,7 +143,7 @@ body {
 .streak-count {
   font-size: 16px;
   font-weight: 800;
-  color: #fdba74;
+  color: var(--sky-soft);
 }
 
 .streak-word {
@@ -149,6 +161,10 @@ h1 {
   font-size: 26px;
   font-weight: 800;
   letter-spacing: -0.02em;
+  background: linear-gradient(120deg, #ffffff 0%, var(--sky-soft) 60%, var(--sky) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .tagline {
@@ -191,17 +207,18 @@ input:focus {
 
 .ring {
   --pct: 0;
-  --ring-color: var(--deposit);
+  --ring-color: var(--accent);
   width: 168px;
   height: 168px;
   border-radius: 50%;
   background: conic-gradient(
     var(--ring-color) calc(var(--pct) * 1%),
-    rgba(148, 163, 184, 0.12) 0
+    rgba(125, 211, 252, 0.12) 0
   );
+  box-shadow: 0 0 34px color-mix(in srgb, var(--ring-color) 25%, transparent);
   display: grid;
   place-items: center;
-  transition: background 0.5s ease;
+  transition: background 0.5s ease, box-shadow 0.5s ease;
   flex-shrink: 0;
 }
 
@@ -282,28 +299,29 @@ input:focus {
   border-radius: 12px;
   cursor: pointer;
   font-family: inherit;
-  font-weight: 600;
-  transition: transform 0.1s ease, filter 0.15s ease;
+  font-weight: 700;
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  transition: transform 0.1s ease, box-shadow 0.18s ease, filter 0.15s ease;
 }
 
 .btn-mini {
-  background: var(--card-2);
-  color: var(--text);
-  border: 1px solid var(--border);
   padding: 0 14px;
+  height: 38px;
   font-size: 13px;
+  box-shadow: 0 3px 10px rgba(1, 10, 34, 0.35);
 }
 
 .btn-primary {
-  background: var(--accent);
-  color: #082f49;
-  padding: 10px 22px;
+  padding: 10px 24px;
   font-size: 14px;
+  box-shadow: 0 6px 18px var(--btn-glow);
 }
 
 .btn-primary:hover,
 .btn-mini:hover {
-  filter: brightness(1.1);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 26px var(--btn-glow);
 }
 
 .btn-primary:active,
@@ -445,8 +463,9 @@ input:focus {
 }
 
 .range-btn.is-active {
-  background: var(--accent);
-  color: #04283a;
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  box-shadow: 0 2px 8px var(--btn-glow);
 }
 
 .trend-summary {
@@ -587,8 +606,9 @@ input:focus {
 }
 
 .cal-metric-btn.is-active {
-  background: var(--accent);
-  color: #04283a;
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  box-shadow: 0 2px 8px var(--btn-glow);
 }
 
 .calendar-nav {
@@ -674,8 +694,9 @@ input:focus {
 }
 
 .cal-span-btn.is-active {
-  background: var(--accent);
-  color: #04283a;
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  box-shadow: 0 2px 8px var(--btn-glow);
 }
 
 .cal-months {
@@ -980,7 +1001,7 @@ input:focus {
 }
 
 .coach-card[data-status="good"] {
-  --coach-accent: var(--deposit);
+  --coach-accent: var(--accent);
 }
 .coach-card[data-status="warning"] {
   --coach-accent: #fbbf24;

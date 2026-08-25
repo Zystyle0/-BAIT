@@ -400,7 +400,7 @@ function render(data) {
   const overBudget = data.balance < 0;
   ring.style.setProperty(
     "--ring-color",
-    overBudget ? "var(--withdraw)" : "var(--deposit)"
+    overBudget ? "var(--withdraw)" : "var(--accent)"
   );
   el("balance-value").style.color = overBudget
     ? "var(--withdraw)"
