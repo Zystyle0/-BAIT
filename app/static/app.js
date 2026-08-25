@@ -41,8 +41,8 @@ const api = {
     if (!res.ok) throw new Error("Failed to load food stats");
     return res.json();
   },
-  async trends(days, end) {
-    const res = await fetch(`/api/trends?days=${days}&end=${end}`);
+  async trends(days, end, bucket = "auto") {
+    const res = await fetch(`/api/trends?days=${days}&end=${end}&bucket=${bucket}`);
     if (!res.ok) throw new Error("Failed to load trends");
     return res.json();
   },
@@ -165,6 +165,7 @@ function renderCalLegend() {
 
 function jumpToDate(dateStr) {
   datePicker.value = dateStr;
+  syncDateNav();
   window.scrollTo({ top: 0, behavior: "smooth" });
   refresh();
 }
@@ -308,6 +309,7 @@ function renderStreak(data) {
 }
 
 let trendDays = 7;
+let trendBucket = "auto";
 
 const el = (id) => document.getElementById(id);
 const datePicker = el("date-picker");
@@ -316,6 +318,72 @@ function todayISO() {
   const now = new Date();
   const tz = now.getTimezoneOffset() * 60000;
   return new Date(now - tz).toISOString().slice(0, 10);
+}
+
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+function daysInMonth(year, month) {
+  return new Date(year, month, 0).getDate(); // month is 1-based here
+}
+
+function populateDateNav() {
+  const monthSel = el("sel-month");
+  const yearSel = el("sel-year");
+  monthSel.innerHTML = "";
+  MONTH_NAMES.forEach((name, i) => {
+    const o = document.createElement("option");
+    o.value = String(i + 1);
+    o.textContent = name;
+    monthSel.appendChild(o);
+  });
+  const thisYear = Number(todayISO().slice(0, 4));
+  yearSel.innerHTML = "";
+  for (let y = thisYear; y >= thisYear - 10; y--) {
+    const o = document.createElement("option");
+    o.value = String(y);
+    o.textContent = String(y);
+    yearSel.appendChild(o);
+  }
+}
+
+function rebuildDayOptions(year, month, keepDay) {
+  const daySel = el("sel-day");
+  const max = daysInMonth(year, month);
+  const target = Math.min(keepDay || 1, max);
+  daySel.innerHTML = "";
+  for (let d = 1; d <= max; d++) {
+    const o = document.createElement("option");
+    o.value = String(d);
+    o.textContent = String(d);
+    daySel.appendChild(o);
+  }
+  daySel.value = String(target);
+  return target;
+}
+
+// Reflect the canonical date-picker value into the Month/Day/Year selects.
+function syncDateNav() {
+  const [y, m, d] = datePicker.value.split("-").map(Number);
+  el("sel-year").value = String(y);
+  el("sel-month").value = String(m);
+  rebuildDayOptions(y, m, d);
+}
+
+// Read the three selects into an ISO date and apply it (clamping the day).
+function applyDateNav(monthOrYearChanged) {
+  const y = Number(el("sel-year").value);
+  const m = Number(el("sel-month").value);
+  let d = Number(el("sel-day").value);
+  if (monthOrYearChanged) d = rebuildDayOptions(y, m, d);
+  const iso = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  datePicker.value = iso;
+  // Move the calendar to the chosen month too, so it's easy to look back.
+  calState.year = y;
+  calState.month = m;
+  refresh();
 }
 
 function render(data) {
@@ -531,7 +599,10 @@ function renderInsights(stats) {
 
 function renderTrends(data) {
   const anyLogged = data.summary.days_logged > 0;
-  el("trends").classList.toggle("hidden", !anyLogged);
+  // Keep the section and its controls visible; only swap chart/summary for the
+  // empty message so the range/granularity toggles stay usable on empty dates.
+  el("trend-summary").classList.toggle("hidden", !anyLogged);
+  el("trend-chart").classList.toggle("hidden", !anyLogged);
   el("trends-empty").classList.toggle("hidden", anyLogged);
 
   const summary = el("trend-summary");
@@ -581,7 +652,7 @@ async function refresh() {
       api.coach(datePicker.value),
       api.frequentFoods(6),
       api.foodStats(5),
-      api.trends(trendDays, datePicker.value),
+      api.trends(trendDays, datePicker.value, trendBucket),
       api.streak(datePicker.value),
       api.calendarRange(calState.year, calState.month, calState.span),
     ]);
@@ -603,7 +674,21 @@ datePicker.value = todayISO();
   calState.year = iy;
   calState.month = im;
 }
-datePicker.addEventListener("change", refresh);
+populateDateNav();
+syncDateNav();
+
+el("sel-month").addEventListener("change", () => applyDateNav(true));
+el("sel-year").addEventListener("change", () => applyDateNav(true));
+el("sel-day").addEventListener("change", () => applyDateNav(false));
+el("today-btn").addEventListener("click", () => {
+  datePicker.value = todayISO();
+  syncDateNav();
+  const [y, m] = datePicker.value.split("-").map(Number);
+  calState.year = y;
+  calState.month = m;
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  refresh();
+});
 
 el("cal-prev").addEventListener("click", () => shiftMonth(-1));
 el("cal-next").addEventListener("click", () => shiftMonth(1));
@@ -669,6 +754,16 @@ el("range-toggle").addEventListener("click", (e) => {
   if (!btn) return;
   trendDays = parseInt(btn.dataset.days, 10);
   for (const b of el("range-toggle").querySelectorAll(".range-btn")) {
+    b.classList.toggle("is-active", b === btn);
+  }
+  refresh();
+});
+
+el("bucket-toggle").addEventListener("click", (e) => {
+  const btn = e.target.closest(".range-btn");
+  if (!btn) return;
+  trendBucket = btn.dataset.bucket;
+  for (const b of el("bucket-toggle").querySelectorAll(".range-btn")) {
     b.classList.toggle("is-active", b === btn);
   }
   refresh();
