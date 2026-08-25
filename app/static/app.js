@@ -76,7 +76,132 @@ const api = {
     if (!res.ok) throw new Error("Failed to load calendar");
     return res.json();
   },
+  async bodyReport() {
+    const res = await fetch("/api/body/report");
+    if (!res.ok) throw new Error("Failed to load body report");
+    return res.json();
+  },
+  async addBody(payload) {
+    const res = await fetch("/api/body", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error("Failed to add measurement");
+    return res.json();
+  },
 };
+
+const BC_SNAPSHOT_ORDER = [
+  "skeletal_muscle_lb",
+  "weight_lb",
+  "body_fat_pct",
+  "fat_mass_lb",
+];
+let bcGoalPopulated = false;
+
+function bcFmt(metric, v) {
+  const n = Number(v);
+  return metric === "body_fat_pct" ? `${n}%` : `${n} lb`;
+}
+
+function bcSigned(v) {
+  const n = Number(v);
+  return n > 0 ? `+${n}` : `${n}`;
+}
+
+function renderBodyComp(report) {
+  el("bc-goal-title").textContent = report.goal.label;
+
+  const sel = el("bc-goal-select");
+  if (!bcGoalPopulated) {
+    sel.innerHTML = "";
+    for (const g of report.goals_catalog) {
+      const o = document.createElement("option");
+      o.value = g.key;
+      o.textContent = g.label;
+      sel.appendChild(o);
+    }
+    bcGoalPopulated = true;
+  }
+  sel.value = report.goal.key;
+
+  const targets = el("bc-targets");
+  targets.innerHTML = "";
+  for (const key of BC_SNAPSHOT_ORDER) {
+    const label = report.goal.target_labels[key];
+    if (!label) continue;
+    const li = document.createElement("li");
+    li.textContent = label;
+    targets.appendChild(li);
+  }
+
+  const hasData = report.count > 0 && report.latest;
+  el("bc-empty").classList.toggle("hidden", hasData);
+  el("bc-body").classList.toggle("hidden", !hasData);
+  if (!hasData) return;
+
+  // Snapshot metric cards
+  const snap = el("bc-snapshot");
+  snap.innerHTML = "";
+  for (const metric of BC_SNAPSHOT_ORDER) {
+    const c = report.changes[metric];
+    if (!c) continue;
+    const card = document.createElement("div");
+    card.className = "bc-metric";
+    card.dataset.aligned = String(c.aligned);
+    const deltaTxt =
+      report.count >= 2
+        ? `${c.arrow} ${bcSigned(c.delta_baseline)} ${c.unit === "%" ? "pts" : c.unit} vs baseline`
+        : "baseline";
+    card.innerHTML = `
+      <div class="bc-metric-label"></div>
+      <div class="bc-metric-value"></div>
+      <div class="bc-metric-delta"></div>
+    `;
+    card.querySelector(".bc-metric-label").textContent = c.label;
+    card.querySelector(".bc-metric-value").textContent = bcFmt(metric, c.value);
+    card.querySelector(".bc-metric-delta").textContent = deltaTxt;
+    snap.appendChild(card);
+  }
+
+  // Trend range header
+  const first = report.trend[0];
+  const last = report.trend[report.trend.length - 1];
+  el("bc-trend-range").textContent =
+    report.count >= 2 ? `Trend: ${first.date} → ${last.date}` : "Baseline";
+
+  // Trend rows (metric sequences with an overall arrow)
+  const trend = el("bc-trend");
+  trend.innerHTML = "";
+  for (const metric of BC_SNAPSHOT_ORDER) {
+    const c = report.changes[metric];
+    const row = document.createElement("div");
+    row.className = "bc-trend-row";
+    const seq = report.trend.map((t) => Number(t[metric])).join(" → ");
+    const label = `${c.label}${c.unit === "%" ? " (%)" : " (lb)"}`;
+    row.innerHTML = `
+      <span class="bc-trend-label"></span>
+      <span class="bc-trend-seq"></span>
+      <span class="bc-trend-arrow"></span>
+    `;
+    row.querySelector(".bc-trend-label").textContent = label;
+    row.querySelector(".bc-trend-seq").textContent = seq;
+    row.querySelector(".bc-trend-arrow").textContent = c.arrow;
+    trend.appendChild(row);
+  }
+
+  // Interpretation
+  el("bc-interpret").dataset.status = report.status;
+  el("bc-headline").textContent = report.headline;
+  const notes = el("bc-notes");
+  notes.innerHTML = "";
+  for (const note of report.notes) {
+    const li = document.createElement("li");
+    li.textContent = note;
+    notes.appendChild(li);
+  }
+}
 
 const calState = { year: null, month: null, span: 1, metric: "calories", data: null };
 const WEEKDAY_LETTERS = ["S", "M", "T", "W", "T", "F", "S"];
@@ -647,15 +772,17 @@ function renderTrends(data) {
 
 async function refresh() {
   try {
-    const [data, advice, frequent, stats, trend, streakData, cal] = await Promise.all([
-      api.summary(datePicker.value),
-      api.coach(datePicker.value),
-      api.frequentFoods(6),
-      api.foodStats(5),
-      api.trends(trendDays, datePicker.value, trendBucket),
-      api.streak(datePicker.value),
-      api.calendarRange(calState.year, calState.month, calState.span),
-    ]);
+    const [data, advice, frequent, stats, trend, streakData, cal, bodyRep] =
+      await Promise.all([
+        api.summary(datePicker.value),
+        api.coach(datePicker.value),
+        api.frequentFoods(6),
+        api.foodStats(5),
+        api.trends(trendDays, datePicker.value, trendBucket),
+        api.streak(datePicker.value),
+        api.calendarRange(calState.year, calState.month, calState.span),
+        api.bodyReport(),
+      ]);
     render(data);
     renderCoach(advice);
     renderQuickAdd(frequent);
@@ -663,6 +790,7 @@ async function refresh() {
     renderTrends(trend);
     renderStreak(streakData);
     renderCalendar(cal);
+    renderBodyComp(bodyRep);
   } catch (err) {
     console.error(err);
   }
@@ -676,6 +804,30 @@ datePicker.value = todayISO();
 }
 populateDateNav();
 syncDateNav();
+el("bc-date").value = todayISO();
+
+el("bc-goal-select").addEventListener("change", async (e) => {
+  await api.updateSettings({ composition_goal: e.target.value });
+  await refresh();
+});
+
+el("bc-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const weight = parseFloat(el("bc-weight").value);
+  const bf = parseFloat(el("bc-bf").value);
+  const smm = parseFloat(el("bc-smm").value);
+  if ([weight, bf, smm].some((v) => Number.isNaN(v))) return;
+  await api.addBody({
+    entry_date: el("bc-date").value || todayISO(),
+    weight_lb: weight,
+    body_fat_pct: bf,
+    skeletal_muscle_lb: smm,
+  });
+  el("bc-weight").value = "";
+  el("bc-bf").value = "";
+  el("bc-smm").value = "";
+  await refresh();
+});
 
 el("sel-month").addEventListener("change", () => applyDateNav(true));
 el("sel-year").addEventListener("change", () => applyDateNav(true));

@@ -64,6 +64,17 @@ def init_db() -> None:
                 name_key TEXT PRIMARY KEY,
                 calories INTEGER NOT NULL CHECK (calories >= 0)
             );
+
+            CREATE TABLE IF NOT EXISTS body_measurements (
+                id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+                entry_date         TEXT NOT NULL,
+                weight_lb          REAL NOT NULL CHECK (weight_lb >= 0),
+                body_fat_pct       REAL NOT NULL CHECK (body_fat_pct >= 0),
+                skeletal_muscle_lb REAL NOT NULL CHECK (skeletal_muscle_lb >= 0),
+                created_at         TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_body_date ON body_measurements(entry_date);
             """
         )
         conn.execute(
@@ -71,4 +82,8 @@ def init_db() -> None:
         )
         conn.execute(
             "INSERT OR IGNORE INTO settings(key, value) VALUES ('goal', 'maintain')"
+        )
+        conn.execute(
+            "INSERT OR IGNORE INTO settings(key, value) "
+            "VALUES ('composition_goal', 'lean_muscle_gain')"
         )

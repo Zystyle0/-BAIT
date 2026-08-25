@@ -72,6 +72,48 @@
         </div>
       </section>
 
+      <section class="bodycomp" id="bodycomp">
+        <div class="bc-head">
+          <div>
+            <span class="bc-eyebrow">Your current goal</span>
+            <h2 class="bc-goal-title" id="bc-goal-title">Lean Muscle Gain</h2>
+          </div>
+          <select id="bc-goal-select" class="goal-select" aria-label="Composition goal"></select>
+        </div>
+
+        <div class="bc-targets-wrap">
+          <span class="bc-subhead">What we're trying to accomplish</span>
+          <ul class="bc-targets" id="bc-targets"></ul>
+        </div>
+
+        <p id="bc-empty" class="empty-state">
+          Log your first body-composition measurement below to start tracking.
+        </p>
+
+        <div class="bc-body hidden" id="bc-body">
+          <div class="bc-snapshot" id="bc-snapshot"></div>
+          <div class="bc-trend-wrap">
+            <span class="bc-subhead" id="bc-trend-range">Trend since baseline</span>
+            <div class="bc-trend" id="bc-trend"></div>
+          </div>
+          <div class="bc-interpret" id="bc-interpret" data-status="">
+            <p class="bc-headline" id="bc-headline"></p>
+            <ul class="bc-notes" id="bc-notes"></ul>
+          </div>
+        </div>
+
+        <form id="bc-form" class="bc-form">
+          <span class="bc-subhead">Log a measurement</span>
+          <div class="bc-fields">
+            <input type="date" id="bc-date" class="date-picker" aria-label="Measurement date" />
+            <input type="number" id="bc-weight" placeholder="Weight (lb)" step="0.1" min="0" required />
+            <input type="number" id="bc-bf" placeholder="Body fat %" step="0.1" min="0" required />
+            <input type="number" id="bc-smm" placeholder="Skeletal muscle (lb)" step="0.1" min="0" required />
+            <button type="submit" class="btn-primary">Add scan</button>
+          </div>
+        </form>
+      </section>
+
       <section class="coach-card" id="coach-card" data-status="empty">
         <div class="coach-avatar">🧑‍🍳</div>
         <div class="coach-body">

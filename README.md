@@ -33,6 +33,11 @@ a lightweight vanilla-JS single-page frontend served directly by FastAPI.
 - **Calendar heatmaps**: 1/3/6/12-month calendar views with multiple heatmap
   metrics (calories, budget adherence, activity), navigation, and click-a-day
   to jump the whole app to that date
+- **Body composition**: log InBody-style scans (weight, body-fat %, skeletal
+  muscle) and pick a goal (lean muscle gain, fat loss, recomposition, maintain,
+  performance). Calorie Bank compares each scan to your baseline, shows
+  per-metric trend arrows, and interprets whether your trend supports your goal
+  — plus what to adjust first
 
 ## Requirements
 
@@ -64,6 +69,10 @@ Then open http://localhost:8000.
 | `GET` | `/api/streak?end=YYYY-MM-DD` | Current consecutive-days-logged streak |
 | `GET` | `/api/calendar?year=YYYY&month=M` | Per-day calorie data for a month (for calendar heatmaps) |
 | `GET` | `/api/calendar/range?year=YYYY&month=M&months=N` | Last N months of calendar data (oldest-first) |
+| `GET` | `/api/body` | List body-composition measurements (oldest-first) |
+| `POST` | `/api/body` | Add a measurement (`weight_lb`, `body_fat_pct`, `skeletal_muscle_lb`) |
+| `DELETE` | `/api/body/{id}` | Delete a measurement |
+| `GET` | `/api/body/report` | Goal-aware baseline/trend/interpretation report |
 | `GET` | `/api/entries?entry_date=YYYY-MM-DD` | List entries (all if no date) |
 | `POST` | `/api/entries` | Create an entry (`kind` = `food` \| `activity`) |
 | `DELETE` | `/api/entries/{id}` | Delete an entry |
@@ -81,3 +90,41 @@ pytest -q
 
 The database path defaults to `data/calorie_bank.db` and can be overridden with
 the `CALORIE_BANK_DB` environment variable (used by the test suite).
+
+## Vision & roadmap
+
+Calorie Bank aims to sit between calorie trackers (which tell you *what you ate*)
+and body-composition scanners (which tell you *what your body looks like*), and
+answer the more useful question:
+
+> Here is what your body is doing, here are the behaviors contributing to it,
+> and here is the next thing to work on.
+
+The **body composition** feature is the first step of that feedback loop:
+
+```
+Eat → Train → Measure → Learn → Adjust → Repeat
+```
+
+Longer-term direction (not yet built): a per-segment performance model that fuses
+multiple existing technologies rather than inventing one magic sensor:
+
+- Bioelectrical impedance → segmental lean/fat mass
+- DEXA / imaging → higher-quality body-composition benchmarks
+- Force plates → force, rate of force development, asymmetries
+- Dynamometers → joint/muscle strength
+- IMUs / accelerometers → movement, velocity, workload
+- EMG → muscle activation; NIRS → local fatigue/oxygenation
+- 3D scanning / CV → segment dimensions; wearables/GPS → training load
+- Nutrition + sleep + wellness → why recovery/performance is changing
+
+The shape of that system:
+
+```
+BODY → SEGMENTS → METRICS → BASELINE → CHANGE → INTERPRETATION → ACTION
+```
+
+Comparisons would be **personal** ("are you back to *your* normal?") against a
+healthy baseline, surfacing *mini improvements* (e.g. quad force +2%, symmetry
++3%) before headline results move. Any medical/return-to-play use would be
+**decision-support only** — clinicians own the decision.

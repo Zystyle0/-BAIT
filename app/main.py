@@ -16,6 +16,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from . import body as bodylib
 from .coach import build_advice
 from .db import get_connection, init_db
 
@@ -59,6 +60,9 @@ VALID_GOALS = ("cut", "maintain", "bulk")
 class SettingsIn(BaseModel):
     daily_budget: int | None = Field(None, ge=0, le=20000)
     goal: str | None = Field(None, pattern="^(cut|maintain|bulk)$")
+    composition_goal: str | None = Field(
+        None, pattern="^(lean_muscle_gain|fat_loss|recomposition|maintain|performance)$"
+    )
 
 
 def _get_setting(conn, key: str, default: str) -> str:
@@ -77,6 +81,10 @@ def _get_goal(conn) -> str:
     return goal if goal in VALID_GOALS else "maintain"
 
 
+def _get_composition_goal(conn) -> str:
+    return bodylib.valid_goal(_get_setting(conn, "composition_goal", "lean_muscle_gain"))
+
+
 def _set_setting(conn, key: str, value: str) -> None:
     conn.execute(
         "INSERT INTO settings(key, value) VALUES (?, ?) "
@@ -85,10 +93,18 @@ def _set_setting(conn, key: str, value: str) -> None:
     )
 
 
+def _settings_dict(conn) -> dict:
+    return {
+        "daily_budget": _get_budget(conn),
+        "goal": _get_goal(conn),
+        "composition_goal": _get_composition_goal(conn),
+    }
+
+
 @app.get("/api/settings")
 def get_settings() -> dict:
     with get_connection() as conn:
-        return {"daily_budget": _get_budget(conn), "goal": _get_goal(conn)}
+        return _settings_dict(conn)
 
 
 @app.put("/api/settings")
@@ -98,7 +114,9 @@ def update_settings(payload: SettingsIn) -> dict:
             _set_setting(conn, "daily_budget", str(payload.daily_budget))
         if payload.goal is not None:
             _set_setting(conn, "goal", payload.goal)
-        return {"daily_budget": _get_budget(conn), "goal": _get_goal(conn)}
+        if payload.composition_goal is not None:
+            _set_setting(conn, "composition_goal", payload.composition_goal)
+        return _settings_dict(conn)
 
 
 @app.get("/api/entries")
@@ -554,6 +572,68 @@ def streak(end: str | None = None) -> dict:
         "streak": count,
         "logged_today": end_date.isoformat() in logged,
     }
+
+
+class BodyMeasurementIn(BaseModel):
+    entry_date: str = Field(..., description="ISO date, e.g. 2026-08-25")
+    weight_lb: float = Field(..., gt=0, le=1500)
+    body_fat_pct: float = Field(..., ge=0, le=75)
+    skeletal_muscle_lb: float = Field(..., ge=0, le=800)
+
+
+def _body_row(row) -> dict:
+    d = dict(row)
+    d["fat_mass_lb"] = bodylib.fat_mass(d["weight_lb"], d["body_fat_pct"])
+    return d
+
+
+@app.get("/api/body")
+def list_body() -> list[dict]:
+    with get_connection() as conn:
+        rows = conn.execute(
+            "SELECT * FROM body_measurements ORDER BY entry_date ASC, id ASC"
+        ).fetchall()
+        return [_body_row(r) for r in rows]
+
+
+@app.post("/api/body", status_code=201)
+def create_body(payload: BodyMeasurementIn) -> dict:
+    with get_connection() as conn:
+        cur = conn.execute(
+            "INSERT INTO body_measurements(entry_date, weight_lb, body_fat_pct, "
+            "skeletal_muscle_lb) VALUES (?, ?, ?, ?)",
+            (
+                payload.entry_date,
+                payload.weight_lb,
+                payload.body_fat_pct,
+                payload.skeletal_muscle_lb,
+            ),
+        )
+        row = conn.execute(
+            "SELECT * FROM body_measurements WHERE id = ?", (cur.lastrowid,)
+        ).fetchone()
+        return _body_row(row)
+
+
+@app.delete("/api/body/{measurement_id}")
+def delete_body(measurement_id: int) -> Response:
+    with get_connection() as conn:
+        cur = conn.execute(
+            "DELETE FROM body_measurements WHERE id = ?", (measurement_id,)
+        )
+        if cur.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Measurement not found")
+    return Response(status_code=204)
+
+
+@app.get("/api/body/report")
+def body_report() -> dict:
+    with get_connection() as conn:
+        rows = conn.execute(
+            "SELECT * FROM body_measurements ORDER BY entry_date ASC, id ASC"
+        ).fetchall()
+        goal = _get_composition_goal(conn)
+    return bodylib.build_report([dict(r) for r in rows], goal)
 
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")

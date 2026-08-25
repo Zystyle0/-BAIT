@@ -82,6 +82,41 @@ def test_settings_include_goal_default(client):
     settings = client.get("/api/settings").json()
     assert settings["daily_budget"] == 2000
     assert settings["goal"] == "maintain"
+    assert settings["composition_goal"] == "lean_muscle_gain"
+
+
+def test_composition_goal_update_and_validation(client):
+    res = client.put("/api/settings", json={"composition_goal": "fat_loss"})
+    assert res.status_code == 200 and res.json()["composition_goal"] == "fat_loss"
+    assert client.put("/api/settings", json={"composition_goal": "bogus"}).status_code == 422
+
+
+def test_body_measurement_crud_and_report(client):
+    created = client.post(
+        "/api/body",
+        json={"entry_date": "2026-05-01", "weight_lb": 165.0, "body_fat_pct": 12.0, "skeletal_muscle_lb": 84.0},
+    ).json()
+    assert created["fat_mass_lb"] == 19.8
+
+    client.post(
+        "/api/body",
+        json={"entry_date": "2026-08-01", "weight_lb": 168.2, "body_fat_pct": 10.5, "skeletal_muscle_lb": 86.2},
+    )
+
+    listing = client.get("/api/body").json()
+    assert len(listing) == 2 and listing[0]["entry_date"] == "2026-05-01"
+
+    client.put("/api/settings", json={"composition_goal": "lean_muscle_gain"})
+    report = client.get("/api/body/report").json()
+    assert report["count"] == 2
+    assert report["status"] == "on_track"
+    assert report["changes"]["skeletal_muscle_lb"]["delta_baseline"] == 2.2
+    assert report["goal"]["key"] == "lean_muscle_gain"
+
+    mid = created["id"]
+    assert client.delete(f"/api/body/{mid}").status_code == 204
+    assert client.delete(f"/api/body/{mid}").status_code == 404
+    assert len(client.get("/api/body").json()) == 1
 
 
 def test_update_goal_only_preserves_budget(client):
