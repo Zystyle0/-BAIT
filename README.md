@@ -26,6 +26,8 @@ a lightweight vanilla-JS single-page frontend served directly by FastAPI.
 - **Trends**: a weekly/monthly bar chart of daily net calories with a budget line
 - **Per-food sparklines**: a mini calorie trend for each food in insights
 - **Streak counter**: consecutive days logged, shown as a badge
+- **Calendar heatmaps**: a monthly calendar with multiple heatmap views
+  (calories, budget adherence, activity) and month navigation
 
 ## Requirements
 
@@ -55,6 +57,7 @@ Then open http://localhost:8000.
 | `PUT` | `/api/foods/typical` | Set/clear typical calories for a food (`{name, calories}`; `null` clears) |
 | `GET` | `/api/trends?days=N&end=YYYY-MM-DD` | Daily net-calorie totals over a window, with summary stats |
 | `GET` | `/api/streak?end=YYYY-MM-DD` | Current consecutive-days-logged streak |
+| `GET` | `/api/calendar?year=YYYY&month=M` | Per-day calorie data for a month (for calendar heatmaps) |
 | `GET` | `/api/entries?entry_date=YYYY-MM-DD` | List entries (all if no date) |
 | `POST` | `/api/entries` | Create an entry (`kind` = `food` \| `activity`) |
 | `DELETE` | `/api/entries/{id}` | Delete an entry |
