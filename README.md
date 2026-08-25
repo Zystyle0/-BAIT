@@ -23,11 +23,13 @@ a lightweight vanilla-JS single-page frontend served directly by FastAPI.
   with average calories per food
 - **Favorites**: pin foods to keep them at the front of quick-add, with an
   editable "typical calories" value used to prefill quick-add
-- **Trends**: a weekly/monthly bar chart of daily net calories with a budget line
+- **Trends**: a bar chart of net calories over flexible ranges (1–4 weeks, 3/6
+  months, 1 year) with automatic day/week/month bucketing and a budget line
 - **Per-food sparklines**: a mini calorie trend for each food in insights
 - **Streak counter**: consecutive days logged, shown as a badge
-- **Calendar heatmaps**: a monthly calendar with multiple heatmap views
-  (calories, budget adherence, activity) and month navigation
+- **Calendar heatmaps**: 1/3/6/12-month calendar views with multiple heatmap
+  metrics (calories, budget adherence, activity), navigation, and click-a-day
+  to jump the whole app to that date
 
 ## Requirements
 
@@ -55,9 +57,10 @@ Then open http://localhost:8000.
 | `GET` | `/api/foods/stats?limit=N` | All-time look-back: most- and least-eaten foods |
 | `PUT` | `/api/foods/favorite` | Pin/unpin a food by name (`{name, favorite}`) |
 | `PUT` | `/api/foods/typical` | Set/clear typical calories for a food (`{name, calories}`; `null` clears) |
-| `GET` | `/api/trends?days=N&end=YYYY-MM-DD` | Daily net-calorie totals over a window, with summary stats |
+| `GET` | `/api/trends?days=N&end=YYYY-MM-DD&bucket=auto\|day\|week\|month` | Net-calorie trend, auto-bucketed by day/week/month |
 | `GET` | `/api/streak?end=YYYY-MM-DD` | Current consecutive-days-logged streak |
 | `GET` | `/api/calendar?year=YYYY&month=M` | Per-day calorie data for a month (for calendar heatmaps) |
+| `GET` | `/api/calendar/range?year=YYYY&month=M&months=N` | Last N months of calendar data (oldest-first) |
 | `GET` | `/api/entries?entry_date=YYYY-MM-DD` | List entries (all if no date) |
 | `POST` | `/api/entries` | Create an entry (`kind` = `food` \| `activity`) |
 | `DELETE` | `/api/entries/{id}` | Delete an entry |
