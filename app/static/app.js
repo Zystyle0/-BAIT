@@ -69,7 +69,153 @@ const api = {
     if (!res.ok) throw new Error("Failed to load streak");
     return res.json();
   },
+  async calendar(year, month) {
+    const res = await fetch(`/api/calendar?year=${year}&month=${month}`);
+    if (!res.ok) throw new Error("Failed to load calendar");
+    return res.json();
+  },
 };
+
+const calState = { year: null, month: null, metric: "calories", data: null };
+
+const CAL_PALETTE = {
+  calories: [
+    "rgba(56, 189, 248, 0.22)",
+    "rgba(56, 189, 248, 0.42)",
+    "rgba(56, 189, 248, 0.66)",
+    "rgba(56, 189, 248, 0.92)",
+  ],
+  activity: [
+    "rgba(52, 211, 153, 0.25)",
+    "rgba(52, 211, 153, 0.45)",
+    "rgba(52, 211, 153, 0.68)",
+    "rgba(52, 211, 153, 0.92)",
+  ],
+};
+
+const CAL_BUDGET_COLORS = {
+  under: "rgba(52, 211, 153, 0.85)",
+  ontrack: "rgba(52, 211, 153, 0.42)",
+  near: "rgba(251, 191, 36, 0.6)",
+  over: "rgba(251, 113, 133, 0.72)",
+};
+
+function calCellStyle(metric, d, budget) {
+  if (metric === "activity") {
+    if (!d.earned) return { empty: true };
+    const e = d.earned;
+    const lvl = e < 150 ? 0 : e < 350 ? 1 : e < 600 ? 2 : 3;
+    return { bg: CAL_PALETTE.activity[lvl] };
+  }
+  if (!d.logged) return { empty: true };
+  if (metric === "budget") {
+    const b = budget || 1;
+    if (d.net <= 0.6 * b) return { bg: CAL_BUDGET_COLORS.under };
+    if (d.net <= b) return { bg: CAL_BUDGET_COLORS.ontrack };
+    if (d.net <= 1.1 * b) return { bg: CAL_BUDGET_COLORS.near };
+    return { bg: CAL_BUDGET_COLORS.over };
+  }
+  // calories (consumed intensity relative to budget)
+  const r = budget > 0 ? d.consumed / budget : 0;
+  const lvl = r < 0.5 ? 0 : r < 0.85 ? 1 : r < 1.15 ? 2 : 3;
+  return { bg: CAL_PALETTE.calories[lvl] };
+}
+
+function renderCalLegend() {
+  const legend = el("cal-legend");
+  legend.innerHTML = "";
+  const swatch = (color) => {
+    const s = document.createElement("span");
+    s.className = "legend-swatch";
+    s.style.background = color;
+    return s;
+  };
+  const label = (text) => {
+    const s = document.createElement("span");
+    s.textContent = text;
+    return s;
+  };
+  if (calState.metric === "budget") {
+    const items = [
+      [CAL_BUDGET_COLORS.under, "Under"],
+      [CAL_BUDGET_COLORS.ontrack, "On track"],
+      [CAL_BUDGET_COLORS.near, "Near"],
+      [CAL_BUDGET_COLORS.over, "Over"],
+    ];
+    const wrap = document.createElement("span");
+    wrap.className = "legend-swatches";
+    for (const [color, text] of items) {
+      const pair = document.createElement("span");
+      pair.className = "legend-swatches";
+      pair.append(swatch(color), label(text));
+      wrap.appendChild(pair);
+    }
+    legend.appendChild(wrap);
+  } else {
+    const pal = CAL_PALETTE[calState.metric];
+    const wrap = document.createElement("span");
+    wrap.className = "legend-swatches";
+    pal.forEach((c) => wrap.appendChild(swatch(c)));
+    legend.append(label("Less"), wrap, label("More"));
+  }
+}
+
+function renderCalendar(data) {
+  calState.data = data;
+  calState.year = data.year;
+  calState.month = data.month;
+  el("cal-title").textContent = `${data.month_name} ${data.year}`;
+  const grid = el("cal-grid");
+  grid.innerHTML = "";
+  for (let i = 0; i < data.lead_blanks; i++) {
+    const blank = document.createElement("div");
+    blank.className = "cal-cell is-blank";
+    grid.appendChild(blank);
+  }
+  const today = todayISO();
+  for (const d of data.days) {
+    const cell = document.createElement("div");
+    cell.className = "cal-cell";
+    const style = calCellStyle(calState.metric, d, data.daily_budget);
+    if (style.empty) {
+      cell.classList.add("is-empty");
+      cell.dataset.hasData = "false";
+    } else {
+      cell.style.background = style.bg;
+      cell.dataset.hasData = "true";
+    }
+    if (d.date === today) cell.classList.add("is-today");
+    cell.title = d.logged
+      ? `${d.date}: ${d.consumed.toLocaleString()} in · ${d.earned.toLocaleString()} out · net ${d.net.toLocaleString()}`
+      : `${d.date}: no entries`;
+    const num = document.createElement("span");
+    num.className = "cal-daynum";
+    num.textContent = d.day;
+    cell.appendChild(num);
+    grid.appendChild(cell);
+  }
+  renderCalLegend();
+}
+
+async function loadCalendar() {
+  const data = await api.calendar(calState.year, calState.month);
+  renderCalendar(data);
+}
+
+function shiftMonth(delta) {
+  let y = calState.year;
+  let m = calState.month + delta;
+  if (m < 1) {
+    m = 12;
+    y -= 1;
+  } else if (m > 12) {
+    m = 1;
+    y += 1;
+  }
+  calState.year = y;
+  calState.month = m;
+  loadCalendar();
+}
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -396,13 +542,14 @@ function renderTrends(data) {
 
 async function refresh() {
   try {
-    const [data, advice, frequent, stats, trend, streakData] = await Promise.all([
+    const [data, advice, frequent, stats, trend, streakData, cal] = await Promise.all([
       api.summary(datePicker.value),
       api.coach(datePicker.value),
       api.frequentFoods(6),
       api.foodStats(5),
       api.trends(trendDays, datePicker.value),
       api.streak(datePicker.value),
+      api.calendar(calState.year, calState.month),
     ]);
     render(data);
     renderCoach(advice);
@@ -410,13 +557,31 @@ async function refresh() {
     renderInsights(stats);
     renderTrends(trend);
     renderStreak(streakData);
+    renderCalendar(cal);
   } catch (err) {
     console.error(err);
   }
 }
 
 datePicker.value = todayISO();
+{
+  const [iy, im] = datePicker.value.split("-").map(Number);
+  calState.year = iy;
+  calState.month = im;
+}
 datePicker.addEventListener("change", refresh);
+
+el("cal-prev").addEventListener("click", () => shiftMonth(-1));
+el("cal-next").addEventListener("click", () => shiftMonth(1));
+el("cal-metrics").addEventListener("click", (e) => {
+  const btn = e.target.closest(".cal-metric-btn");
+  if (!btn) return;
+  calState.metric = btn.dataset.metric;
+  for (const b of el("cal-metrics").querySelectorAll(".cal-metric-btn")) {
+    b.classList.toggle("is-active", b === btn);
+  }
+  if (calState.data) renderCalendar(calState.data);
+});
 
 el("entry-form").addEventListener("submit", async (e) => {
   e.preventDefault();

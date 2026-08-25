@@ -6,6 +6,7 @@ budget, and track your remaining balance for any day.
 
 from __future__ import annotations
 
+import calendar as calmod
 from contextlib import asynccontextmanager
 from datetime import date, timedelta
 from pathlib import Path
@@ -367,6 +368,65 @@ def trends(days: int = 7, end: str | None = None) -> dict:
             "total_consumed": total_consumed,
             "avg_net": avg_net,
             "avg_consumed": avg_consumed,
+        },
+    }
+
+
+@app.get("/api/calendar")
+def calendar_month(year: int | None = None, month: int | None = None) -> dict:
+    """Per-day calorie data for a month, for calendar heatmaps."""
+    today = date.today()
+    y = year or today.year
+    m = month or today.month
+    if not (1 <= m <= 12):
+        raise HTTPException(status_code=422, detail="month must be 1-12")
+    num_days = calmod.monthrange(y, m)[1]
+    first = date(y, m, 1)
+    last = date(y, m, num_days)
+    with get_connection() as conn:
+        budget = _get_budget(conn)
+        rows = conn.execute(
+            "SELECT entry_date, kind, COALESCE(SUM(calories), 0) AS total "
+            "FROM entries WHERE entry_date BETWEEN ? AND ? GROUP BY entry_date, kind",
+            (first.isoformat(), last.isoformat()),
+        ).fetchall()
+
+    by_day: dict[str, dict[str, int]] = {}
+    for r in rows:
+        by_day.setdefault(r["entry_date"], {})[r["kind"]] = int(r["total"])
+
+    days = []
+    for d in range(1, num_days + 1):
+        ds = date(y, m, d).isoformat()
+        consumed = by_day.get(ds, {}).get("food", 0)
+        earned = by_day.get(ds, {}).get("activity", 0)
+        logged = ds in by_day
+        net = consumed - earned
+        days.append(
+            {
+                "day": d,
+                "date": ds,
+                "consumed": consumed,
+                "earned": earned,
+                "net": net,
+                "logged": logged,
+                "over": logged and net > budget,
+            }
+        )
+
+    return {
+        "year": y,
+        "month": m,
+        "month_name": first.strftime("%B"),
+        "daily_budget": budget,
+        "num_days": num_days,
+        # Sunday-start calendars: number of blank cells before day 1.
+        "lead_blanks": (first.weekday() + 1) % 7,
+        "days": days,
+        "summary": {
+            "logged_days": sum(1 for x in days if x["logged"]),
+            "days_over": sum(1 for x in days if x["over"]),
+            "consumed_total": sum(x["consumed"] for x in days),
         },
     }
 

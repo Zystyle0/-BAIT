@@ -286,6 +286,41 @@ def test_food_history_series(client):
     assert wrap["history"] == cals  # chronological order
 
 
+def test_calendar_month_structure(client):
+    client.put("/api/settings", json={"daily_budget": 1000})
+    client.post(
+        "/api/entries",
+        json={"entry_date": "2026-08-05", "kind": "food", "description": "A", "calories": 1300},
+    )
+    client.post(
+        "/api/entries",
+        json={"entry_date": "2026-08-05", "kind": "activity", "description": "Run", "calories": 200},
+    )
+    client.post(
+        "/api/entries",
+        json={"entry_date": "2026-08-20", "kind": "food", "description": "B", "calories": 400},
+    )
+
+    cal = client.get("/api/calendar?year=2026&month=8").json()
+    assert cal["num_days"] == 31
+    assert cal["month_name"] == "August"
+    assert cal["lead_blanks"] == 6  # Aug 1 2026 is a Saturday (Sunday-start)
+    assert len(cal["days"]) == 31
+
+    by_day = {d["day"]: d for d in cal["days"]}
+    assert by_day[5]["consumed"] == 1300 and by_day[5]["earned"] == 200
+    assert by_day[5]["net"] == 1100 and by_day[5]["over"] is True
+    assert by_day[20]["net"] == 400 and by_day[20]["over"] is False
+    assert by_day[1]["logged"] is False
+
+    assert cal["summary"]["logged_days"] == 2
+    assert cal["summary"]["days_over"] == 1
+
+
+def test_calendar_rejects_bad_month(client):
+    assert client.get("/api/calendar?year=2026&month=13").status_code == 422
+
+
 def test_coach_endpoint_reflects_ledger(client):
     day = "2026-08-24"
     client.put("/api/settings", json={"daily_budget": 2000})

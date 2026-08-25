@@ -139,6 +139,34 @@
         </p>
       </section>
 
+      <section class="calendar" id="calendar">
+        <div class="calendar-head">
+          <h2>Calendar</h2>
+          <div class="cal-metrics" id="cal-metrics">
+            <button type="button" class="cal-metric-btn is-active" data-metric="calories">
+              Calories
+            </button>
+            <button type="button" class="cal-metric-btn" data-metric="budget">
+              Vs budget
+            </button>
+            <button type="button" class="cal-metric-btn" data-metric="activity">
+              Activity
+            </button>
+          </div>
+        </div>
+        <div class="calendar-nav">
+          <button type="button" class="cal-nav-btn" id="cal-prev" title="Previous month">‹</button>
+          <span class="cal-title" id="cal-title">—</span>
+          <button type="button" class="cal-nav-btn" id="cal-next" title="Next month">›</button>
+        </div>
+        <div class="cal-weekdays">
+          <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span>
+          <span>Thu</span><span>Fri</span><span>Sat</span>
+        </div>
+        <div class="cal-grid" id="cal-grid"></div>
+        <div class="cal-legend" id="cal-legend"></div>
+      </section>
+
       <section class="insights" id="insights">
         <div class="insights-head">
           <h2>Food insights</h2>
