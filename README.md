@@ -24,7 +24,10 @@ a lightweight vanilla-JS single-page frontend served directly by FastAPI.
 - **Favorites**: pin foods to keep them at the front of quick-add, with an
   editable "typical calories" value used to prefill quick-add
 - **Trends**: a bar chart of net calories over flexible ranges (1–4 weeks, 3/6
-  months, 1 year) with automatic day/week/month bucketing and a budget line
+  months, 1 year) with automatic or manual (day/week/month) bucketing and a
+  budget line
+- **Date navigation**: jump to any past date via Month/Day/Year dropdowns or a
+  Today button; click any calendar day to open it
 - **Per-food sparklines**: a mini calorie trend for each food in insights
 - **Streak counter**: consecutive days logged, shown as a badge
 - **Calendar heatmaps**: 1/3/6/12-month calendar views with multiple heatmap
